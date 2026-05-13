@@ -47,15 +47,16 @@ export const AttendanceHistory = () => {
         .from('attendance')
         .select('*, user:user_id(user_id, email, name, role)')
 
-      // Align with API logic (inclusive end-of-day). We compute boundaries using the same date parsing.
-      // StartDate/EndDate are YYYY-MM-DD strings from <input type="date" />.
-      const start = new Date(startDate)
-      start.setHours(0, 0, 0, 0)
+      // Build boundaries in *local time* to avoid UTC shift.
+      // startDate/endDate are from <input type="date" /> as YYYY-MM-DD.
+      const [sY, sM, sD] = startDate.split('-').map(Number)
+      const [eY, eM, eD] = endDate.split('-').map(Number)
 
-      const end = new Date(endDate)
-      end.setHours(23, 59, 59, 999)
+      const start = new Date(sY, sM - 1, sD, 0, 0, 0, 0)
+      const end = new Date(eY, eM - 1, eD, 23, 59, 59, 999)
 
       query = query.gte('created_at', start.toISOString()).lte('created_at', end.toISOString())
+
 
 
 

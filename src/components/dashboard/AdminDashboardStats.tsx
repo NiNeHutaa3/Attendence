@@ -29,15 +29,18 @@ export const AdminDashboardStats = () => {
           .select('user_id', { count: 'exact' })
           .eq('role', 'karyawan')
 
-        const today = new Date().toDateString()
+        const todayLocal = new Date()
+        const start = new Date(todayLocal)
+        start.setHours(0, 0, 0, 0)
+        const end = new Date(todayLocal)
+        end.setHours(23, 59, 59, 999)
+
         const { data: attendanceData } = await supabase
           .from('attendance')
           .select('status')
-          .gte('created_at', new Date(today).toISOString())
-          .lte(
-            'created_at',
-            new Date(new Date(today).getTime() + 24 * 60 * 60 * 1000).toISOString()
-          )
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString())
+
 
         const validCount = attendanceData?.filter((a: any) => a.status === 'valid').length || 0
         const invalidCount =
