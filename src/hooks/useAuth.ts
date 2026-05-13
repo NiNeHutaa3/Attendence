@@ -34,7 +34,8 @@ type AuthSessionResult = {
   } | null
 }
 
-const AUTH_REQUEST_TIMEOUT_MS = 5000
+const AUTH_REQUEST_TIMEOUT_MS = 15000
+
 
 const getDashboardRole = (role?: string): 'admin' | 'karyawan' =>
   role === 'admin' ? 'admin' : 'karyawan'
