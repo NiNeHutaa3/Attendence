@@ -1,0 +1,13 @@
+
+> web-absensi@1.0.0 dev
+> next dev --webpack
+
+▲ Next.js 16.2.4 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://10.33.251.188:3000
+- Environments: .env.local
+✓ Ready in 851ms
+[32m✔[0m [33mConsole Ninja[0m extension is connected to [33mNext.js[0m, see [36mhttps://tinyurl.com/2vt8jxzw[0m
+
+○ Compiling / ...
+ GET / 200 in 5.4s (next.js: 5.1s, application-code: 313ms)

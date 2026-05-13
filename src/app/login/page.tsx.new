@@ -1,0 +1,60 @@
+import { LoginForm } from '@/components/auth/LoginForm'
+
+export default function LoginPage() {
+  return (
+    <div className="app-surface relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12 bg-gradient-to-br from-[#060B14] via-[#0F172A] to-[#0A1628]">
+      
+      {/* Animated particles */}
+      <div className="particle opacity-70" />
+      <div className="particle opacity-50" />
+      <div className="particle opacity-60" />
+
+      {/* Main login card */}
+      <div className="relative z-10 w-full max-w-md">
+        <div className="card-neumorphic p-8 sm:p-10">
+          
+          {/* Logo & Title */}
+          <div className="text-center mb-8">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-[#388BFD] to-[#2563EB] shadow-2xl">
+              <svg className="h-7 w-7" fill="none" stroke="white" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-[#E2EBF6] to-[#C5D8F0] bg-clip-text text-transparent mb-2">
+              Web Absensi
+            </h1>
+            <p className="font-mono text-sm uppercase tracking-widest text-[#4A6FA0] mb-6">
+              attendance system
+            </p>
+            <p className="font-mono text-xs uppercase tracking-widest text-[#388BFD] animate-pulse">
+              secure login
+            </p>
+          </div>
+
+          {/* Form wrapper */}
+          <div className="space-y-2">
+            <LoginForm />
+          </div>
+
+          {/* Footer */}
+          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+            <p className="font-mono text-xs text-[#2D4A72]">
+              © 2024 Web Absensi · Protected system
+            </p>
+            <p className="text-xs mt-1 text-[#4A6FA0] font-mono">
+              Need help? Contact administrator
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Subtle status indicator */}
+      <div className="pointer-events-none absolute bottom-6 left-1/2 transform -translate-x-1/2 opacity-75">
+        <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10">
+          <span className="h-2 w-2 bg-green-400 rounded-full animate-ping" />
+          <span className="font-mono text-xs text-green-400">Live</span>
+        </div>
+      </div>
+    </div>
+  )
+}
