@@ -43,9 +43,6 @@ export const AttendanceHistory = () => {
   const fetchRecords = async () => {
     try {
       setLoading(true)
-      let query = supabase
-        .from('attendance')
-        .select('*, user:user_id(user_id, email, name, role)')
 
       // Build boundaries in *local time* to avoid UTC shift.
       // startDate/endDate are from <input type="date" /> as YYYY-MM-DD.
@@ -55,26 +52,52 @@ export const AttendanceHistory = () => {
       const start = new Date(sY, sM - 1, sD, 0, 0, 0, 0)
       const end = new Date(eY, eM - 1, eD, 23, 59, 59, 999)
 
-      query = query.gte('created_at', start.toISOString()).lte('created_at', end.toISOString())
-
-
-
+      let attendanceQuery = supabase
+        .from('attendance')
+        .select('*')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
 
       if (selectedUser !== 'all') {
-        query = query.eq('user_id', selectedUser)
+        attendanceQuery = attendanceQuery.eq('user_id', selectedUser)
       }
 
-      // status filter handled client-side for consistency with existing UI
-      const { data, error } = await query.order('created_at', { ascending: false })
+      const { data: attendanceData, error: attendanceError } = await attendanceQuery.order(
+        'created_at',
+        { ascending: false }
+      )
 
+      if (attendanceError) throw attendanceError
 
-      if (error) throw error
+      const attendance = (attendanceData || []) as Attendance[]
+
+      if (attendance.length === 0) {
+        setRecords([])
+        return
+      }
+
+      // Fetch users separately (avoid join relationship dependency)
+      const userIds = Array.from(new Set(attendance.map((a) => a.user_id)))
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('user_id, email, name, role')
+        .in('user_id', userIds)
+
+      if (usersError) throw usersError
+
+      const usersById = new Map(
+        (usersData || []).map((u: any) => [u.user_id as string, u as User])
+      )
 
       setRecords(
-        data?.map((record: any) => ({
-          ...record,
-          user: Array.isArray(record.user) ? record.user[0] : record.user,
-        })) || []
+        attendance.map((record) => {
+          const user = usersById.get(record.user_id) as User
+          return {
+            ...(record as any),
+            user,
+          }
+        })
       )
     } catch (error: any) {
       console.error('Error fetching records:', error)
