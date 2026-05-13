@@ -87,8 +87,9 @@ export const AttendanceHistory = () => {
       if (usersError) throw usersError
 
       // Debug: to ensure mapping between attendance.user_id and users.user_id works
-      console.debug('[AttendanceHistory] attendance userIds:', userIds)
-      console.debug('[AttendanceHistory] usersData length:', (usersData || []).length)
+      console.log('[AttendanceHistory] attendance userIds:', userIds)
+      console.log('[AttendanceHistory] usersData length:', (usersData || []).length)
+
 
       const usersById = new Map(
         (usersData || []).map((u: any) => [u.user_id as string, u as User])
