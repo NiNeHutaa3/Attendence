@@ -32,13 +32,29 @@ export const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('users')
-        .select('*, geofence:geofence_id(*)')
-        .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setUsers(data || [])
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('Admin session tidak ditemukan. Silakan login ulang.')
+      }
+
+      const response = await fetch('/api/admin/users/list', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch users')
+      }
+
+      setUsers(result.users || [])
     } catch (error: any) {
       console.error('Error fetching users:', error)
       setError(error.message)
@@ -46,6 +62,7 @@ export const UserManagement = () => {
       setLoading(false)
     }
   }
+
 
   const fetchGeofences = async () => {
     try {
@@ -177,7 +194,7 @@ if (!confirm('Apakah Anda yakin ingin menghapus pengguna ini?')) return
               geofenceId: geofences[0]?.geofence_id || '',
             })
           }}
-className="btn-primary" 
+className="btn-primary"
         >
           {showForm ? 'Batal' : 'Tambah Pengguna'}
         </button>
@@ -465,7 +482,8 @@ className="btn-primary"
                 filteredUsers.map((user) => (
                   <tr key={user.user_id} className="transition-colors hover:bg-slate-50">
                     <td className="px-6 py-4 text-sm font-semibold text-slate-950">
-                      {user.name}
+                      {user.name || user.email.split('@')[0]}
+
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
                     <td className="px-6 py-4 text-sm">

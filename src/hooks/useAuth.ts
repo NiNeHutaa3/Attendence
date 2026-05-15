@@ -67,8 +67,15 @@ const getUserWithProfile = async (authUser: SupabaseAuthUser): Promise<AuthUser>
       .select('name, role')
       .eq('user_id', authUser.id)
       .maybeSingle() as PromiseLike<UserProfileResult>,
+
     'Loading user profile'
   )
+
+  // Supabase JS biasanya mengembalikan error di profileResult.error (bukan object kosong).
+  if (!profileResult) {
+    console.warn('[useAuth] profileResult is null/undefined', { authUserId: authUser.id })
+  }
+
 
   const profile = profileResult?.data
   const error = profileResult?.error
@@ -77,15 +84,27 @@ const getUserWithProfile = async (authUser: SupabaseAuthUser): Promise<AuthUser>
     console.error('Error getting user profile:', error)
   }
 
+  // Kalau profile tidak ketemu / error, role akan default karyawan.
+  // (Supabase RLS kemungkinan membuat select dari public.users tidak terizinkan.)
+  const dashboardRole = getDashboardRole(profile?.role || undefined)
+
+  // Debug: bantu lacak kalau RLS menolak select atau profile tidak ketemu.
+  if (!profile?.role) {
+    console.warn('[useAuth] profile role empty', { userId: authUser.id, email: authUser.email, error })
+  }
+
+
   return {
     id: authUser.id,
     email: authUser.email || '',
     user_metadata: {
       ...authUser.user_metadata,
       name: profile?.name || authUser.user_metadata?.name,
-      role: getDashboardRole(profile?.role || authUser.user_metadata?.role),
+      role: dashboardRole,
     },
   }
+
+
 }
 
 export const useAuth = () => {
