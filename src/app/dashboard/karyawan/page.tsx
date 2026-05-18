@@ -23,8 +23,15 @@ export default function KaryawanDashboard() {
   }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
+    try {
+      await supabase.auth.signOut({ scope: 'global' })
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      router.replace('/login')
+      router.refresh()
+      window.location.href = '/login'
+    }
   }
 
   if (loading) {
@@ -101,6 +108,7 @@ export default function KaryawanDashboard() {
         </div>
 
         <button
+          type="button"
           onClick={handleLogout}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
@@ -259,19 +267,6 @@ export default function KaryawanDashboard() {
             ))}
 
           </div>
-
-        </div>
-
-        {/* TIPS */}
-        <div className="rounded-3xl border border-amber-100 bg-amber-50 p-6">
-
-          <p className="text-lg font-semibold text-amber-950">
-            Tips
-          </p>
-
-          <p className="mt-3 text-sm leading-7 text-amber-800">
-            Jika lokasi tidak akurat, aktifkan mode akurasi tinggi pada GPS lalu ambil ulang lokasi.
-          </p>
 
         </div>
 

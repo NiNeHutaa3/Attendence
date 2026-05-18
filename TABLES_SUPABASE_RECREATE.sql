@@ -58,7 +58,8 @@ create table if not exists public.attendance (
   check_in_time timestamptz,
   check_out_time timestamptz,
   status text not null default 'invalid' check (status in ('valid','invalid')),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create index if not exists idx_attendance_user_id_created_at on public.attendance(user_id, created_at);
@@ -68,17 +69,20 @@ create index if not exists idx_attendance_status on public.attendance(status);
 create table if not exists public.photo_attendance (
   photo_id uuid primary key default gen_random_uuid(),
   attendance_id uuid not null references public.attendance(attendance_id) on delete cascade,
+  event_type text not null default 'checkin' check (event_type in ('checkin', 'checkout')),
   photo_url text not null,
   captured_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
 
 create index if not exists idx_photo_attendance_attendance_id on public.photo_attendance(attendance_id);
+create index if not exists idx_photo_attendance_event_type on public.photo_attendance(event_type);
 
 -- 5) location_log
 create table if not exists public.location_log (
   location_id uuid primary key default gen_random_uuid(),
   attendance_id uuid not null references public.attendance(attendance_id) on delete cascade,
+  event_type text not null default 'checkin' check (event_type in ('checkin', 'checkout')),
   latitude double precision not null,
   longitude double precision not null,
   distance_from_center double precision,
@@ -87,11 +91,13 @@ create table if not exists public.location_log (
 );
 
 create index if not exists idx_location_log_attendance_id on public.location_log(attendance_id);
+create index if not exists idx_location_log_event_type on public.location_log(event_type);
 
 -- 6) access_log
 create table if not exists public.access_log (
   log_id uuid primary key default gen_random_uuid(),
   attendance_id uuid not null references public.attendance(attendance_id) on delete cascade,
+  event_type text not null default 'checkin' check (event_type in ('checkin', 'checkout')),
   user_agent text,
   ip_address inet,
   is_vpn boolean not null default false,
@@ -99,6 +105,7 @@ create table if not exists public.access_log (
 );
 
 create index if not exists idx_access_log_attendance_id on public.access_log(attendance_id);
+create index if not exists idx_access_log_event_type on public.access_log(event_type);
 
 -- ---------------------------
 -- RLS ENABLE

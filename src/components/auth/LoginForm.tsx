@@ -115,8 +115,8 @@ export const LoginForm = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={!hydrated || loading}
-            placeholder="name@company.com"
-            className="h-11 w-full rounded-lg border border-slate-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+            placeholder="name@gmail.com"
+            className="h-11 w-full rounded-lg border border-slate-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-black"
           />
         </div>
 
@@ -131,7 +131,7 @@ export const LoginForm = () => {
             required
             disabled={!hydrated || loading}
             placeholder="••••••••"
-            className="h-11 w-full rounded-lg border border-slate-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+            className="h-11 w-full rounded-lg border border-slate-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-black"
           />
         </div>
 

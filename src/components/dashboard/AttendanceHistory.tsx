@@ -2,10 +2,40 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Attendance, User } from '@/types'
+import type { AccessLog, Attendance, LocationLog, PhotoAttendance, User } from '@/types'
 
 type AttendanceRecord = Attendance & {
-  user: User
+  user: User | null
+  photos: PhotoAttendance[]
+  locations: LocationLog[]
+  access_logs: AccessLog[]
+}
+
+const formatDateTime = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleString('id-ID', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : '-'
+
+const formatTime = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '-'
+
+const getSessionToken = async () => {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+
+  if (!token) {
+    throw new Error('Session admin tidak ditemukan. Silakan login ulang.')
+  }
+
+  return token
 }
 
 export const AttendanceHistory = () => {
@@ -19,6 +49,7 @@ export const AttendanceHistory = () => {
 
   const [users, setUsers] = useState<User[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null)
 
   useEffect(() => {
     fetchUsers()
@@ -28,15 +59,23 @@ export const AttendanceHistory = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('role', 'karyawan')
-        .order('name')
+      const token = await getSessionToken()
+      const response = await fetch('/api/admin/users/list', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
-      setUsers(data || [])
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.error || 'Gagal memuat daftar karyawan')
+      }
+
+      const body = (await response.json()) as { users?: User[] }
+      setUsers((body.users || []).filter((user) => user.role === 'karyawan'))
     } catch (error: any) {
       console.error('Error fetching users:', error)
+      setError(error.message || 'Gagal memuat daftar karyawan')
     }
   }
 
@@ -44,66 +83,26 @@ export const AttendanceHistory = () => {
     try {
       setLoading(true)
 
-      // Build boundaries in *local time* to avoid UTC shift.
-      // startDate/endDate are from <input type="date" /> as YYYY-MM-DD.
-      const [sY, sM, sD] = startDate.split('-').map(Number)
-      const [eY, eM, eD] = endDate.split('-').map(Number)
+      const token = await getSessionToken()
+      const params = new URLSearchParams()
+      params.set('startDate', startDate)
+      params.set('endDate', endDate)
+      params.set('userId', selectedUser)
+      params.set('status', statusFilter)
 
-      const start = new Date(sY, sM - 1, sD, 0, 0, 0, 0)
-      const end = new Date(eY, eM - 1, eD, 23, 59, 59, 999)
+      const response = await fetch(`/api/admin/attendance?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
-      let attendanceQuery = supabase
-        .from('attendance')
-        .select('*')
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
-
-      if (selectedUser !== 'all') {
-        attendanceQuery = attendanceQuery.eq('user_id', selectedUser)
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.error || 'Gagal memuat data absensi')
       }
 
-      const { data: attendanceData, error: attendanceError } = await attendanceQuery.order(
-        'created_at',
-        { ascending: false }
-      )
-
-      if (attendanceError) throw attendanceError
-
-      const attendance = (attendanceData || []) as Attendance[]
-
-      if (attendance.length === 0) {
-        setRecords([])
-        return
-      }
-
-      // Fetch users separately (avoid join relationship dependency)
-      const userIds = Array.from(new Set(attendance.map((a) => a.user_id)))
-
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('user_id, email, name, role')
-        .in('user_id', userIds)
-
-      if (usersError) throw usersError
-
-      // Debug: to ensure mapping between attendance.user_id and users.user_id works
-      console.log('[AttendanceHistory] attendance userIds:', userIds)
-      console.log('[AttendanceHistory] usersData length:', (usersData || []).length)
-
-
-      const usersById = new Map(
-        (usersData || []).map((u: any) => [u.user_id as string, u as User])
-      )
-
-      setRecords(
-        attendance.map((record) => {
-          const user = usersById.get(record.user_id) as User | undefined
-          return {
-            ...(record as any),
-            user: user as User,
-          }
-        })
-      )
+      const body = (await response.json()) as { records?: AttendanceRecord[] }
+      setRecords(body.records || [])
     } catch (error: any) {
       console.error('Error fetching records:', error)
       setError(error.message)
@@ -117,6 +116,12 @@ export const AttendanceHistory = () => {
   )
   const validRecords = filteredRecords.filter((record) => record.status === 'valid').length
   const invalidRecords = filteredRecords.filter((record) => record.status === 'invalid').length
+  const selectedCheckInPhoto = selectedRecord?.photos.find((photo) => photo.event_type === 'checkin')
+  const selectedCheckOutPhoto = selectedRecord?.photos.find((photo) => photo.event_type === 'checkout')
+  const selectedPhotos: Array<[string, PhotoAttendance | undefined]> = [
+    ['Check-in Photo', selectedCheckInPhoto],
+    ['Check-out Photo', selectedCheckOutPhoto],
+  ]
 
   return (
       <div className="space-y-6">
@@ -202,10 +207,7 @@ export const AttendanceHistory = () => {
             onClick={async () => {
               try {
                 setError(null)
-                const { data: sessionData } = await supabase.auth.getSession()
-                const token = sessionData.session?.access_token
-
-                if (!token) throw new Error('Session admin tidak ditemukan. Silakan login ulang.')
+                const token = await getSessionToken()
 
                 const params = new URLSearchParams()
                 params.set('startDate', startDate)
@@ -323,17 +325,19 @@ export const AttendanceHistory = () => {
                   <tr key={record.attendance_id} className="transition-colors hover:bg-slate-50">
                     <td className="px-6 py-4 text-sm">
                       <div>
-                        <p className="font-semibold text-slate-950">{record.user?.name}</p>
-                        <p className="text-xs text-slate-500">{record.user?.email}</p>
+                        <p className="font-semibold text-slate-950">
+                          {record.user?.name || 'Profil tidak ditemukan'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {record.user?.email || record.user_id}
+                        </p>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-slate-700">
-                      {new Date(record.check_in_time).toLocaleTimeString()}
+                      {formatTime(record.check_in_time)}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-slate-700">
-                      {record.check_out_time
-                        ? new Date(record.check_out_time).toLocaleTimeString()
-                        : '-'}
+                      {formatTime(record.check_out_time)}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span
@@ -347,7 +351,11 @@ export const AttendanceHistory = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <button className="text-xs font-bold text-blue-600 transition-colors hover:text-blue-700">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRecord(record)}
+                        className="text-xs font-bold text-blue-600 transition-colors hover:text-blue-700"
+                      >
                         View Details
                       </button>
                     </td>
@@ -358,6 +366,139 @@ export const AttendanceHistory = () => {
           </table>
         </div>
       </div>
+
+      {selectedRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                  Attendance Detail
+                </p>
+                <h3 className="mt-1 text-xl font-bold text-slate-950">
+                  {selectedRecord.user?.name || 'Profil tidak ditemukan'}
+                </h3>
+                <p className="text-sm text-slate-500">
+                  {selectedRecord.user?.email || selectedRecord.user_id}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedRecord(null)}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Tutup
+              </button>
+            </div>
+
+            <div className="space-y-6 p-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Check-in</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {formatDateTime(selectedRecord.check_in_time)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Check-out</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {formatDateTime(selectedRecord.check_out_time)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Status</p>
+                  <p className="mt-2 text-sm font-semibold capitalize text-slate-950">
+                    {selectedRecord.status}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Evidence</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {selectedRecord.photos.length} foto, {selectedRecord.locations.length} lokasi
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                {selectedPhotos.map(([label, photo]) => (
+                  <div key={label} className="rounded-lg border border-slate-200 p-4">
+                    <p className="mb-3 text-sm font-bold text-slate-950">{label}</p>
+                    {photo ? (
+                      <a href={photo.photo_url} target="_blank" rel="noreferrer">
+                        <img
+                          src={photo.photo_url}
+                          alt={label}
+                          className="aspect-video w-full rounded-lg object-cover ring-1 ring-slate-200"
+                        />
+                      </a>
+                    ) : (
+                      <div className="flex aspect-video items-center justify-center rounded-lg bg-slate-100 text-sm font-semibold text-slate-500">
+                        Foto belum tersedia
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="mb-3 text-sm font-bold text-slate-950">Location Logs</p>
+                  <div className="space-y-3">
+                    {selectedRecord.locations.length > 0 ? (
+                      selectedRecord.locations.map((location) => (
+                        <div key={location.location_id} className="rounded-lg bg-slate-50 p-3 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-bold capitalize text-slate-950">
+                              {location.event_type || 'checkin'}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {formatDateTime(location.created_at)}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-slate-600">
+                            {location.latitude}, {location.longitude}
+                          </p>
+                          <p className="mt-1 text-slate-600">
+                            Jarak: {Number(location.distance_from_center).toFixed(1)} m
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500">Belum ada data lokasi.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="mb-3 text-sm font-bold text-slate-950">Access Logs</p>
+                  <div className="space-y-3">
+                    {selectedRecord.access_logs.length > 0 ? (
+                      selectedRecord.access_logs.map((log) => (
+                        <div key={log.log_id} className="rounded-lg bg-slate-50 p-3 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-bold capitalize text-slate-950">
+                              {log.event_type || 'checkin'}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {formatDateTime(log.created_at)}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-slate-600">IP: {log.ip_address || '-'}</p>
+                          <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                            {log.user_agent || '-'}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500">Belum ada access log.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -132,16 +132,6 @@ export default function AdminDashboard() {
       navItems={tabs}
       activeItem={activeTab}
       onNavChange={(id) => setActiveTab(id as TabType)}
-      sidebarFooter={
-        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">
-            Quick Tip
-          </p>
-          <p className="mt-2 text-sm font-semibold leading-6 text-blue-950">
-            Check invalid records first before exporting attendance data.
-          </p>
-        </div>
-      }
     >
       {activeTab === 'overview' && <AdminDashboardStats />}
       {activeTab === 'users' && <UserManagement />}
