@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-import { getCurrentLocation, calculateDistance, isWithinGeofence } from '@/utils/geolocation'
+import { verifyGeofenceLocation, type VerifiedLocationResult } from '@/utils/geolocation'
 import {
   startCamera,
   capturePhoto,
@@ -101,6 +101,9 @@ export const CheckInComponent = () => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [distance, setDistance] = useState<number | null>(null)
   const [isValid, setIsValid] = useState<boolean | null>(null)
+  const [locationVerification, setLocationVerification] = useState<VerifiedLocationResult | null>(
+    null
+  )
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null)
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
   const [cameraActive, setCameraActive] = useState(false)
@@ -239,6 +242,7 @@ export const CheckInComponent = () => {
     setDistance(null)
     setIsValid(null)
     setUserLocation(null)
+    setLocationVerification(null)
   }
 
   const saveAttendanceEvidence = async (
@@ -395,15 +399,18 @@ export const CheckInComponent = () => {
     setError(null)
 
     try {
-      const coords = await getCurrentLocation()
-      const lat = coords.latitude
-      const lng = coords.longitude
+      const verification = await verifyGeofenceLocation(
+        activeGeofence.lat,
+        activeGeofence.lng,
+        activeGeofence.radius
+      )
+      const lat = verification.lat
+      const lng = verification.lng
 
       setUserLocation({ lat, lng })
-
-      const dist = calculateDistance(lat, lng, activeGeofence.lat, activeGeofence.lng)
-      setDistance(dist)
-      setIsValid(isWithinGeofence(dist, activeGeofence.radius))
+      setDistance(verification.distance)
+      setIsValid(verification.isValid)
+      setLocationVerification(verification)
       setState('idle')
     } catch (err: any) {
       setError(err.message || 'Failed to get location')
@@ -640,10 +647,11 @@ export const CheckInComponent = () => {
               </h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
                 {!userLocation
-                  ? `Klik tombol di bawah untuk mengambil posisi GPS. Sistem akan mencocokkan jarak kamu dengan radius kantor sebelum ${actionLabel}.`
+                  ? `Klik tombol di bawah untuk mengambil beberapa sampel GPS. Sistem akan mengecek akurasi, konsistensi titik, dan radius kantor sebelum ${actionLabel}.`
                   : isValid
                     ? 'Posisi kamu berada di area yang diizinkan. Lanjutkan dengan mengambil foto kehadiran.'
-                    : 'Saat ini kamu belum berada di radius kantor. Ambil ulang lokasi setelah posisimu sesuai.'}
+                    : locationVerification?.issues[0] ||
+                      'Saat ini lokasi belum memenuhi validasi. Ambil ulang lokasi setelah posisimu sesuai.'}
               </p>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -756,6 +764,7 @@ export const CheckInComponent = () => {
     setUserLocation(null)
     setDistance(null)
     setIsValid(null)
+    setLocationVerification(null)
   }}
   disabled={isBusy}
   className={`
@@ -853,8 +862,10 @@ export const CheckInComponent = () => {
                 {!userLocation
                   ? 'Ambil lokasi untuk mulai.'
                   : isValid
-                    ? 'Kamu berada di radius kantor.'
-                    : 'Kamu berada di luar radius kantor.'}
+                    ? 'Lokasi lolos validasi radius dan akurasi.'
+                    : locationVerification?.isReliable === false
+                      ? 'Lokasi ditolak karena kualitas GPS mencurigakan.'
+                      : 'Kamu berada di luar radius kantor.'}
               </p>
             </div>
 
@@ -868,6 +879,31 @@ export const CheckInComponent = () => {
               <p className="mt-2 text-sm text-slate-500">
                 Radius kantor: {activeGeofence.radius} m
               </p>
+              {locationVerification && (
+                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-semibold text-slate-600">Akurasi GPS</span>
+                    <span className="font-bold text-slate-950">
+                      {locationVerification.accuracy.toFixed(1)} m
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                    <span className="font-semibold text-slate-600">Sampel</span>
+                    <span className="font-bold text-slate-950">
+                      {locationVerification.samples.length} titik
+                    </span>
+                  </div>
+                  {locationVerification.issues.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {locationVerification.issues.map((issue) => (
+                        <p key={issue} className="text-xs leading-5 text-rose-700">
+                          {issue}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </aside>
         </div>

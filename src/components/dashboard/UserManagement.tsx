@@ -1,16 +1,48 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getAuthErrorMessage } from '@/lib/auth-errors'
 import type { Geofence, User } from '@/types'
 
 type UserRole = 'admin' | 'karyawan'
 
+const getSessionToken = async () => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session?.access_token) {
+    throw new Error('Admin session tidak ditemukan. Silakan login ulang.')
+  }
+
+  return session.access_token
+}
+
+const getInitials = (name: string, email: string) =>
+  (name || email)
+    .split(/[ @._-]+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+const formatDate = (value?: string) =>
+  value
+    ? new Date(value).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '-'
+
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([])
   const [geofences, setGeofences] = useState<Geofence[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
@@ -32,19 +64,12 @@ export const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        throw new Error('Admin session tidak ditemukan. Silakan login ulang.')
-      }
+      const token = await getSessionToken()
 
       const response = await fetch('/api/admin/users/list', {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
       })
 
@@ -63,7 +88,6 @@ export const UserManagement = () => {
     }
   }
 
-
   const fetchGeofences = async () => {
     try {
       const { data, error } = await supabase
@@ -73,6 +97,7 @@ export const UserManagement = () => {
         .order('radius', { ascending: true })
 
       if (error) throw error
+
       setGeofences(data || [])
       setFormData((current) => ({
         ...current,
@@ -84,13 +109,23 @@ export const UserManagement = () => {
     }
   }
 
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      name: '',
+      role: 'karyawan',
+      password: '',
+      geofenceId: geofences[0]?.geofence_id || '',
+    })
+  }
+
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setSuccess(null)
 
     if (!formData.email || !formData.name || !formData.password) {
-      setError('All fields are required')
+      setError('Nama, email, dan password wajib diisi')
       return
     }
 
@@ -100,18 +135,13 @@ export const UserManagement = () => {
     }
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        throw new Error('Admin session tidak ditemukan. Silakan login ulang.')
-      }
+      setSaving(true)
+      const token = await getSessionToken()
 
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -129,268 +159,263 @@ export const UserManagement = () => {
         throw new Error(result.error || 'Failed to add user')
       }
 
-      setSuccess(`User ${formData.name} added successfully`)
-      setFormData({
-        email: '',
-        name: '',
-        role: 'karyawan',
-        password: '',
-        geofenceId: geofences[0]?.geofence_id || '',
-      })
+      setSuccess(`User ${formData.name} berhasil ditambahkan`)
+      resetForm()
       setShowForm(false)
-      fetchUsers()
+      await fetchUsers()
     } catch (error: any) {
       setError(getAuthErrorMessage(error.message || 'Failed to add user'))
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleDeleteUser = async (userId: string) => {
-if (!confirm('Apakah Anda yakin ingin menghapus pengguna ini?')) return
+  const handleDeleteUser = async (targetUser: User) => {
+    const confirmed = confirm(
+      `Hapus ${targetUser.name || targetUser.email}? Akun login dan data profil user akan dihapus.`
+    )
+
+    if (!confirmed) return
 
     try {
       setError(null)
+      setSuccess(null)
+      setDeletingUserId(targetUser.user_id)
 
-      const { error } = await supabase.from('users').delete().eq('user_id', userId)
+      const token = await getSessionToken()
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: targetUser.user_id,
+        }),
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      setSuccess('User deleted successfully')
-      fetchUsers()
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete user')
+      }
+
+      setUsers((current) => current.filter((user) => user.user_id !== targetUser.user_id))
+      setSuccess(`User ${targetUser.name || targetUser.email} berhasil dihapus`)
+      await fetchUsers()
     } catch (error: any) {
       setError(error.message || 'Failed to delete user')
+    } finally {
+      setDeletingUserId(null)
     }
   }
 
-  const filteredUsers = users.filter((user) => {
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter
+  const filteredUsers = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase()
-    const matchesSearch =
-      !keyword ||
-      user.name.toLowerCase().includes(keyword) ||
-      user.email.toLowerCase().includes(keyword)
 
-    return matchesRole && matchesSearch
-  })
+    return users.filter((user) => {
+      const matchesRole = roleFilter === 'all' || user.role === roleFilter
+      const matchesSearch =
+        !keyword ||
+        user.name.toLowerCase().includes(keyword) ||
+        user.email.toLowerCase().includes(keyword)
+
+      return matchesRole && matchesSearch
+    })
+  }, [roleFilter, searchTerm, users])
+
   const adminCount = users.filter((user) => user.role === 'admin').length
   const employeeCount = users.filter((user) => user.role === 'karyawan').length
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-950">User Management</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Add employee accounts and manage dashboard access.
-          </p>
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="grid gap-6 border-b border-slate-200 bg-slate-50 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">
+              Directory
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-950">Kelola User</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+              Tambahkan admin atau karyawan, atur geofence, dan jaga akses dashboard tetap rapi.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm((current) => !current)
+              setError(null)
+              setSuccess(null)
+              resetForm()
+            }}
+            className="btn-primary h-11"
+          >
+            {showForm ? 'Tutup Form' : 'Tambah Pengguna'}
+          </button>
         </div>
-        <button
-          onClick={() => {
-            setShowForm(!showForm)
-            setFormData({
-              email: '',
-              name: '',
-              role: 'karyawan',
-              password: '',
-              geofenceId: geofences[0]?.geofence_id || '',
-            })
-          }}
-className="btn-primary"
-        >
-          {showForm ? 'Batal' : 'Tambah Pengguna'}
-        </button>
+
+        <div className="grid divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Total</p>
+            <p className="mt-2 text-3xl font-bold text-slate-950">{users.length}</p>
+            <p className="mt-1 text-sm text-slate-500">akun terdaftar</p>
+          </div>
+          <div className="p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">Admin</p>
+            <p className="mt-2 text-3xl font-bold text-blue-950">{adminCount}</p>
+            <p className="mt-1 text-sm text-slate-500">operator dashboard</p>
+          </div>
+          <div className="p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-600">
+              Karyawan
+            </p>
+            <p className="mt-2 text-3xl font-bold text-emerald-950">{employeeCount}</p>
+            <p className="mt-1 text-sm text-slate-500">pengguna absensi</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Total</p>
-          <p className="mt-2 text-3xl font-bold text-slate-950">{users.length}</p>
-          <p className="mt-1 text-sm text-slate-500">registered users</p>
+      {success && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+          {success}
         </div>
-        <div className="rounded-lg border border-blue-100 bg-blue-50 p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">Admin</p>
-          <p className="mt-2 text-3xl font-bold text-blue-950">{adminCount}</p>
-          <p className="mt-1 text-sm text-blue-700">dashboard operators</p>
+      )}
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
+          {error}
         </div>
-        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-600">
-            Karyawan
-          </p>
-          <p className="mt-2 text-3xl font-bold text-emerald-950">{employeeCount}</p>
-          <p className="mt-1 text-sm text-emerald-700">attendance users</p>
-        </div>
-      </div>
-
-      {success && <div className="alert-success">{success}</div>}
-      {error && <div className="alert-error">{error}</div>}
+      )}
 
       {showForm && (
-  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
-    {/* Header */}
-    <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
-      <h2 className="text-xl font-bold text-slate-950">Tambah Pengguna</h2>
-      <p className="mt-1 text-sm text-slate-500">
-        Tambahkan akun admin atau karyawan baru ke sistem absensi.
-      </p>
-    </div>
-
-    {/* Form */}
-    <form onSubmit={handleAddUser} className="space-y-6 p-6">
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        {/* Full Name */}
-        <div className="space-y-2">
-          <label
-            htmlFor="name"
-            className="text-sm font-semibold tracking-wide text-slate-700"
-          >
-            Full Name
-          </label>
-
-          <div className="relative">
-            <input
-              type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              placeholder="John Doe"
-            />
+        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h3 className="text-lg font-bold text-slate-950">Tambah Pengguna Baru</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Akun dibuat di Supabase Auth dan langsung disinkronkan ke profil aplikasi.
+            </p>
           </div>
-        </div>
 
-        {/* Email */}
-        <div className="space-y-2">
-          <label
-            htmlFor="email"
-            className="text-sm font-semibold tracking-wide text-slate-700"
-          >
-            Email
-          </label>
+          <form onSubmit={handleAddUser} className="space-y-5 p-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label htmlFor="name" className="mb-2 block text-sm font-semibold text-slate-700">
+                  Nama Lengkap
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="input-base"
+                  placeholder="Agung Pratama"
+                />
+              </div>
 
-          <div className="relative">
-            <input
-              type="email"
-              id="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              placeholder="user@example.com"
-            />
-          </div>
-        </div>
+              <div>
+                <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="input-base"
+                  placeholder="agung@company.com"
+                />
+              </div>
 
-        {/* Password */}
-        <div className="space-y-2">
-          <label
-            htmlFor="password"
-            className="text-sm font-semibold tracking-wide text-slate-700"
-          >
-            Password
-          </label>
+              <div>
+                <label
+                  htmlFor="password"
+                  className="mb-2 block text-sm font-semibold text-slate-700"
+                >
+                  Password
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="input-base"
+                  placeholder="Minimal 6 karakter"
+                />
+              </div>
 
-          <div className="relative">
-            <input
-              type="password"
-              id="password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              placeholder="Minimum 6 characters"
-            />
-          </div>
-        </div>
+              <div>
+                <label htmlFor="role" className="mb-2 block text-sm font-semibold text-slate-700">
+                  Role
+                </label>
+                <select
+                  id="role"
+                  value={formData.role}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      role: e.target.value as UserRole,
+                    })
+                  }
+                  className="input-base"
+                >
+                  <option value="karyawan">Karyawan</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
 
-        {/* Role */}
-        <div className="space-y-2">
-          <label
-            htmlFor="role"
-            className="text-sm font-semibold tracking-wide text-slate-700"
-          >
-            Role
-          </label>
-
-          <select
-            id="role"
-            value={formData.role}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                role: e.target.value as UserRole,
-              })
-            }
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition-all duration-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
-          >
-            <option value="karyawan">Karyawan</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-
-        {/* Geofence */}
-        <div className="space-y-2 md:col-span-2">
-          <label
-            htmlFor="geofence"
-            className="text-sm font-semibold tracking-wide text-slate-700"
-          >
-            Lokasi dan Radius Geofence
-          </label>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all duration-200 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100">
-            <select
-              id="geofence"
-              value={formData.geofenceId}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  geofenceId: e.target.value,
-                })
-              }
-              className="w-full bg-transparent text-sm text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={
-                formData.role === 'admin' || geofences.length === 0
-              }
-            >
-              {geofences.length === 0 ? (
-                <option value="">Belum ada data geofence</option>
-              ) : (
-                geofences.map((geofence) => (
-                  <option
-                    key={geofence.geofence_id}
-                    value={geofence.geofence_id}
-                  >
-                    {geofence.location_name} - {Number(geofence.radius)}m
-                  </option>
-                ))
-              )}
-            </select>
-
-            <div className="mt-3 flex items-start gap-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-700">
-              <span className="mt-0.5 h-2 w-2 rounded-full bg-blue-500" />
-              <p>
-                Admin tidak membutuhkan geofence. Karyawan wajib
-                memiliki lokasi absensi aktif.
-              </p>
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="geofence"
+                  className="mb-2 block text-sm font-semibold text-slate-700"
+                >
+                  Lokasi dan Radius Geofence
+                </label>
+                <select
+                  id="geofence"
+                  value={formData.geofenceId}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      geofenceId: e.target.value,
+                    })
+                  }
+                  className="input-base"
+                  disabled={formData.role === 'admin' || geofences.length === 0}
+                >
+                  {geofences.length === 0 ? (
+                    <option value="">Belum ada data geofence</option>
+                  ) : (
+                    geofences.map((geofence) => (
+                      <option key={geofence.geofence_id} value={geofence.geofence_id}>
+                        {geofence.location_name} - Radius {Number(geofence.radius)}m
+                      </option>
+                    ))
+                  )}
+                </select>
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  Admin tidak membutuhkan geofence. Karyawan wajib memiliki lokasi absensi aktif.
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Button */}
-      <div className="flex items-center justify-end pt-2">
-        <button
-          type="submit"
-          className="btn-primary"
-        >
-          Add User
-        </button>
-      </div>
-    </form>
-  </div>
-)}
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false)
+                  resetForm()
+                }}
+                className="btn-secondary"
+                disabled={saving}
+              >
+                Batal
+              </button>
+              <button type="submit" className="btn-primary" disabled={saving}>
+                {saving ? 'Menyimpan...' : 'Simpan User'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="rounded-lg border border-slate-200 bg-white p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_12rem]">
@@ -404,7 +429,7 @@ className="btn-primary"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="input-base"
-              placeholder="Search by name or email"
+              placeholder="Cari nama atau email"
             />
           </div>
           <div>
@@ -417,7 +442,7 @@ className="btn-primary"
               onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'karyawan')}
               className="input-base"
             >
-              <option value="all">All roles</option>
+              <option value="all">Semua role</option>
               <option value="admin">Admin</option>
               <option value="karyawan">Karyawan</option>
             </select>
@@ -425,16 +450,20 @@ className="btn-primary"
         </div>
       </div>
 
-      <div className="card-base overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h3 className="text-base font-bold text-slate-950">Daftar Pengguna</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Menampilkan {filteredUsers.length} dari {users.length} user.
+          </p>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Email
+                  User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                   Role
@@ -453,15 +482,15 @@ className="btn-primary"
             <tbody className="divide-y divide-slate-100 bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center">
+                  <td colSpan={5} className="px-6 py-10 text-center">
                     <div className="spinner mx-auto h-8 w-8" />
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">
                     <div className="mx-auto max-w-sm">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
                         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
@@ -471,59 +500,72 @@ className="btn-primary"
                           />
                         </svg>
                       </div>
-                      <p className="font-bold text-slate-950">No users found</p>
+                      <p className="font-bold text-slate-950">User tidak ditemukan</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Try a different search keyword or role filter.
+                        Coba kata kunci atau filter role yang berbeda.
                       </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.user_id} className="transition-colors hover:bg-slate-50">
-                    <td className="px-6 py-4 text-sm font-semibold text-slate-950">
-                      {user.name || user.email.split('@')[0]}
+                filteredUsers.map((user) => {
+                  const displayName = user.name || user.email.split('@')[0]
+                  const isDeleting = deletingUserId === user.user_id
 
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-semibold ring-1 ${
-                          user.role === 'admin'
-                            ? 'bg-blue-50 text-blue-700 ring-blue-100'
-                            : 'bg-emerald-50 text-emerald-700 ring-emerald-100'
-                        }`}
-                      >
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {user.geofence ? (
-                        <div>
-                          <p className="font-semibold text-slate-950">
-                            {user.geofence.location_name}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Radius {Number(user.geofence.radius)}m
-                          </p>
+                  return (
+                    <tr key={user.user_id} className="transition-colors hover:bg-slate-50">
+                      <td className="px-6 py-4 text-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-700 ring-1 ring-slate-200">
+                            {getInitials(displayName, user.email)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-slate-950">{displayName}</p>
+                            <p className="truncate text-xs text-slate-500">{user.email}</p>
+                          </div>
                         </div>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm">
-                      <button
-                        onClick={() => handleDeleteUser(user.user_id)}
-                        className="text-xs font-bold text-rose-600 transition-colors hover:text-rose-700"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+                            user.role === 'admin'
+                              ? 'bg-blue-50 text-blue-700 ring-blue-100'
+                              : 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                          }`}
+                        >
+                          {user.role === 'admin' ? 'Admin' : 'Karyawan'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {user.geofence ? (
+                          <div>
+                            <p className="font-semibold text-slate-950">
+                              {user.geofence.location_name}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Radius {Number(user.geofence.radius)}m
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {formatDate(user.created_at)}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={isDeleting}
+                          className="rounded-lg px-3 py-2 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isDeleting ? 'Menghapus...' : 'Delete'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>

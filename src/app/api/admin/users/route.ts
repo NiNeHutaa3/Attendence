@@ -125,3 +125,110 @@ export async function POST(request: Request) {
     },
   })
 }
+
+export async function DELETE(request: Request) {
+  const envError = getEnvError()
+
+  if (envError || !supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+    return NextResponse.json({ error: envError }, { status: 500 })
+  }
+
+  const authHeader = request.headers.get('authorization')
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const serviceSupabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+
+  const {
+    data: { user: currentUser },
+    error: authError,
+  } = await serviceSupabase.auth.getUser(token)
+
+  if (authError || !currentUser) {
+    return NextResponse.json({ error: 'Invalid admin session' }, { status: 401 })
+  }
+
+  const { data: adminProfile, error: adminError } = await serviceSupabase
+    .from('users')
+    .select('role')
+    .eq('user_id', currentUser.id)
+    .maybeSingle()
+
+  const isAdmin =
+    adminProfile?.role === 'admin' || currentUser.user_metadata?.role === 'admin'
+
+  if (adminError || !isAdmin) {
+    return NextResponse.json({ error: 'Only admins can delete users' }, { status: 403 })
+  }
+
+  const { userId } = (await request.json()) as { userId?: string }
+
+  if (!userId) {
+    return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+  }
+
+  if (userId === currentUser.id) {
+    return NextResponse.json({ error: 'Admin tidak dapat menghapus akun yang sedang dipakai' }, { status: 400 })
+  }
+
+  const { data: targetUser, error: targetError } = await serviceSupabase
+    .from('users')
+    .select('user_id,email,name,role')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (targetError) {
+    return NextResponse.json({ error: targetError.message }, { status: 400 })
+  }
+
+  if (!targetUser) {
+    return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 404 })
+  }
+
+  if (targetUser.role === 'admin') {
+    const { count, error: countError } = await serviceSupabase
+      .from('users')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('role', 'admin')
+
+    if (countError) {
+      return NextResponse.json({ error: countError.message }, { status: 400 })
+    }
+
+    if ((count || 0) <= 1) {
+      return NextResponse.json({ error: 'Tidak dapat menghapus admin terakhir' }, { status: 400 })
+    }
+  }
+
+  const { error: profileDeleteError } = await serviceSupabase
+    .from('users')
+    .delete()
+    .eq('user_id', userId)
+
+  if (profileDeleteError) {
+    return NextResponse.json({ error: profileDeleteError.message }, { status: 400 })
+  }
+
+  const { error: authDeleteError } = await serviceSupabase.auth.admin.deleteUser(userId)
+
+  if (authDeleteError && !/not found/i.test(authDeleteError.message)) {
+    return NextResponse.json({ error: authDeleteError.message }, { status: 400 })
+  }
+
+  return NextResponse.json({
+    deletedUser: {
+      user_id: targetUser.user_id,
+      email: targetUser.email,
+      name: targetUser.name,
+      role: targetUser.role,
+    },
+  })
+}
