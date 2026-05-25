@@ -443,21 +443,21 @@ export const CheckInComponent = () => {
   const stepItems = ['Lokasi', 'Validasi', 'Foto', 'Kirim']
 
   return (
-    <section className="space-y-5">
-      <div className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6">
+    <section className="space-y-4 lg:space-y-5">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
               Proses Absensi
             </p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+            <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-950 lg:text-2xl">
               {todayAttendance && !isCheckOutFlow
                 ? 'Absensi hari ini tercatat'
                 : `Mulai ${actionLabel}`}
             </h2>
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="hidden grid-cols-4 gap-2 lg:grid">
             {stepItems.map((item, index) => {
               const step = index + 1
               const done = currentStep > step
@@ -494,11 +494,11 @@ export const CheckInComponent = () => {
       {todayAttendance && !isCheckOutFlow ? (
         <div className="overflow-hidden rounded-lg border border-emerald-200 bg-white">
           <div className="grid gap-0 lg:grid-cols-[1fr_18rem]">
-            <div className="p-6 sm:p-8">
+            <div className="p-5 sm:p-8">
               <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
                 {todayAttendance.status}
               </span>
-              <h3 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">
+              <h3 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 lg:text-3xl">
                 Kamu sudah check-in hari ini
               </h3>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -549,7 +549,7 @@ export const CheckInComponent = () => {
                 <img
                   src={photoPreviewUrl}
                   alt="Photo preview"
-                  className="h-[24rem] w-full rounded-lg object-cover"
+                  className="h-80 w-full rounded-lg object-cover lg:h-[24rem]"
                 />
               )}
             </div>
@@ -603,7 +603,7 @@ export const CheckInComponent = () => {
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">
                   Kamera
                 </p>
-                <h3 className="mt-1 text-2xl font-bold text-slate-950">Ambil bukti foto</h3>
+                <h3 className="mt-1 text-xl font-bold text-slate-950 lg:text-2xl">Ambil bukti foto</h3>
               </div>
               <button onClick={stopCamera} className="btn-secondary min-h-10 px-3 text-sm">
                 Tutup Kamera
@@ -613,7 +613,7 @@ export const CheckInComponent = () => {
               ref={videoRef}
               autoPlay
               playsInline
-              className="h-[28rem] w-full rounded-lg bg-black object-cover"
+              className="h-80 w-full rounded-lg bg-black object-cover lg:h-[28rem]"
             />
             <button onClick={takePhoto} className="btn-primary mt-4 w-full" disabled={isBusy}>
               {state === 'capturing-photo' ? 'Mengambil foto...' : 'Ambil Foto'}
@@ -623,8 +623,8 @@ export const CheckInComponent = () => {
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-            <div className="p-6 sm:p-8">
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+            <div className="p-5 sm:p-8">
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-blue-100 lg:mb-6 lg:h-14 lg:w-14">
                 <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -635,10 +635,10 @@ export const CheckInComponent = () => {
                 </svg>
               </div>
 
-              <p className="text-sm font-bold uppercase tracking-[0.16em] text-slate-400">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400 lg:text-sm">
                 Langkah berikutnya
               </p>
-              <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+              <h3 className="mt-3 text-2xl font-bold tracking-tight text-slate-950 lg:text-3xl">
                 {!userLocation
                   ? `Verifikasi lokasi ${actionLabel}`
                   : isValid
@@ -647,7 +647,7 @@ export const CheckInComponent = () => {
               </h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
                 {!userLocation
-                  ? `Klik tombol di bawah untuk mengambil beberapa sampel GPS. Sistem akan mengecek akurasi, konsistensi titik, dan radius kantor sebelum ${actionLabel}.`
+                  ? `Tekan tombol untuk mengecek lokasi sebelum ${actionLabel}.`
                   : isValid
                     ? 'Posisi kamu berada di area yang diizinkan. Lanjutkan dengan mengambil foto kehadiran.'
                     : locationVerification?.issues[0] ||
@@ -822,7 +822,7 @@ export const CheckInComponent = () => {
             </div>
 
             {userLocation && (
-              <div className="border-t border-slate-100 p-5 sm:p-6">
+              <div className="hidden border-t border-slate-100 p-5 sm:p-6 lg:block">
                 <MapComponent
                   userLat={userLocation.lat}
                   userLng={userLocation.lng}
@@ -834,7 +834,7 @@ export const CheckInComponent = () => {
             )}
           </div>
 
-          <aside className="space-y-5">
+          <aside className="hidden space-y-5 lg:block">
             <div
               className={`rounded-lg border p-5 ${
                 userLocation

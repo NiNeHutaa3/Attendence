@@ -68,7 +68,7 @@ export default function KaryawanDashboard() {
     <div className="min-h-screen bg-slate-100 text-slate-900">
 
   {/* HEADER */}
-  <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
+  <header className="sticky top-0 z-40 hidden border-b border-slate-200/80 bg-white/80 backdrop-blur-xl lg:block">
     <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
 
       {/* LEFT */}
@@ -120,33 +120,33 @@ export default function KaryawanDashboard() {
   </header>
 
   {/* MAIN */}
-  <main className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
+  <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8 lg:py-8">
 
     {/* HERO */}
-    <section className="relative overflow-hidden rounded-3xl border border-white/60 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 p-8 text-white shadow-2xl">
+    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 text-slate-950 shadow-sm lg:rounded-3xl lg:border-white/60 lg:bg-gradient-to-br lg:from-slate-900 lg:via-slate-800 lg:to-blue-900 lg:p-8 lg:text-white lg:shadow-2xl">
 
       {/* BACKGROUND GLOW */}
-      <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute right-0 top-0 hidden h-64 w-64 rounded-full bg-blue-500/20 blur-3xl lg:block" />
 
-      <div className="relative z-10 grid gap-10 lg:grid-cols-[1fr_320px]">
+      <div className="relative z-10 grid gap-5 lg:gap-10 lg:grid-cols-[1fr_320px]">
 
         {/* LEFT */}
         <div>
 
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-300">
+          <p className="hidden text-sm font-semibold uppercase tracking-[0.18em] text-blue-300 lg:block">
             Dashboard Hari Ini
           </p>
 
-          <h1 className="mt-4 text-4xl text-white font-bold leading-tight lg:text-5xl">
+          <h1 className="text-2xl font-bold leading-tight text-slate-950 lg:mt-4 lg:text-5xl lg:text-white">
             Selamat datang, {userName}
           </h1>
 
-          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300">
+          <p className="mt-5 hidden max-w-2xl text-base leading-7 text-slate-300 lg:block">
             Lakukan check-in dengan validasi lokasi GPS dan dokumentasi foto untuk memastikan kehadiran tercatat dengan akurat.
           </p>
 
           {/* STATS */}
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mt-8 hidden grid-cols-1 gap-4 sm:grid-cols-3 lg:grid">
 
             <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
               <p className="text-sm text-slate-300">
@@ -183,20 +183,20 @@ export default function KaryawanDashboard() {
         </div>
 
         {/* RIGHT */}
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:rounded-3xl lg:border-white/10 lg:bg-white/10 lg:p-6 lg:backdrop-blur">
 
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 lg:text-sm lg:text-slate-300">
             Waktu Sekarang
           </p>
 
-          <p className="mt-5 text-5xl font-bold tracking-tight">
+          <p className="mt-3 text-4xl font-bold tracking-tight lg:mt-5 lg:text-5xl">
             {now.toLocaleTimeString('id-ID', {
               hour: '2-digit',
               minute: '2-digit',
             })}
           </p>
 
-          <p className="mt-4 text-sm leading-6 text-slate-300">
+          <p className="mt-2 text-sm leading-6 text-slate-500 lg:mt-4 lg:text-slate-300">
             {now.toLocaleDateString('id-ID', {
               weekday: 'long',
               year: 'numeric',
@@ -205,7 +205,7 @@ export default function KaryawanDashboard() {
             })}
           </p>
 
-          <div className="mt-8 rounded-2xl bg-emerald-400/10 p-4 ring-1 ring-emerald-400/20">
+          <div className="mt-8 hidden rounded-2xl bg-emerald-400/10 p-4 ring-1 ring-emerald-400/20 lg:block">
 
             <p className="text-sm font-semibold text-emerald-300">
               Ketentuan
@@ -224,15 +224,15 @@ export default function KaryawanDashboard() {
     </section>
 
     {/* CONTENT */}
-    <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="mt-5 grid gap-8 lg:mt-8 xl:grid-cols-[minmax(0,1fr)_340px]">
 
       {/* MAIN ACTION */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="lg:rounded-3xl lg:border lg:border-slate-200 lg:bg-white lg:p-6 lg:shadow-sm">
         <CheckInComponent />
       </div>
 
       {/* SIDEBAR */}
-      <aside className="space-y-6">
+      <aside className="hidden space-y-6 xl:block">
 
         {/* FLOW */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

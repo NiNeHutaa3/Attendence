@@ -5,17 +5,17 @@ export default function LoginPage() {
     <main className="relative min-h-screen overflow-hidden bg-slate-100">
 
       {/* BACKGROUND DECORATION */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 hidden lg:block">
         <div className="absolute left-[-10%] top-[-10%] h-[500px] w-[500px] rounded-full bg-blue-200/40 blur-3xl" />
         <div className="absolute bottom-[-10%] right-[-10%] h-[400px] w-[400px] rounded-full bg-slate-300/40 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-center px-6 py-10 md:px-12 lg:px-20">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-center px-4 py-6 md:px-12 lg:px-20 lg:py-10">
 
         <div className="grid w-full items-center gap-20 lg:grid-cols-2">
 
           {/* LEFT CONTENT */}
-          <section>
+          <section className="hidden lg:block">
             <div className="max-w-xl">
 
               {/* TOP BADGE */}
@@ -75,13 +75,13 @@ export default function LoginPage() {
             <div className="relative w-full max-w-md">
 
               {/* GLOW */}
-              <div className="absolute inset-0 rounded-3xl bg-blue-500/10 blur-2xl" />
+              <div className="absolute inset-0 hidden rounded-3xl bg-blue-500/10 blur-2xl lg:block" />
 
               {/* CARD */}
-              <div className="relative rounded-3xl border border-white/60 bg-white/80 p-8 shadow-2xl backdrop-blur-xl">
+              <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:rounded-3xl lg:border-white/60 lg:bg-white/80 lg:p-8 lg:shadow-2xl lg:backdrop-blur-xl">
 
                 {/* HEADER */}
-                <div className="mb-8">
+                <div className="mb-8 hidden lg:block">
 
                   
 
