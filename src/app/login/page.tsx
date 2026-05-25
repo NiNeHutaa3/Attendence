@@ -81,12 +81,26 @@ export default function LoginPage() {
               <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:rounded-3xl lg:border-white/60 lg:bg-white/80 lg:p-8 lg:shadow-2xl lg:backdrop-blur-xl">
 
                 {/* HEADER */}
-                <div className="mb-8 hidden lg:block">
+                <div className="mb-6 lg:mb-8">
 
                   
 
+                  <div className="mb-5 flex items-center gap-3 lg:hidden">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold text-white">
+                      W
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-500">
+                        Web Absensi
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Login karyawan
+                      </p>
+                    </div>
+                  </div>
+
                   <h2 className="text-2xl font-bold text-slate-900">
-                    Welcome back
+                    Masuk ke akun
                   </h2>
 
                   <p className="mt-2 text-sm leading-6 text-slate-500">
