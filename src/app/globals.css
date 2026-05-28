@@ -29,6 +29,14 @@
   border-radius: 9999px;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes skeleton-loading {
   0%, 100% {
     opacity: 1;

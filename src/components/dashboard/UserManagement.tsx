@@ -226,6 +226,7 @@ export const UserManagement = () => {
 
   const adminCount = users.filter((user) => user.role === 'admin').length
   const employeeCount = users.filter((user) => user.role === 'karyawan').length
+  const assignedGeofenceCount = users.filter((user) => Boolean(user.geofence)).length
 
   return (
     <div className="space-y-6">
@@ -248,13 +249,13 @@ export const UserManagement = () => {
               setSuccess(null)
               resetForm()
             }}
-            className="btn-primary h-11"
+            className="btn-primary h-11 w-full sm:w-auto"
           >
             {showForm ? 'Tutup Form' : 'Tambah Pengguna'}
           </button>
         </div>
 
-        <div className="grid divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="grid divide-y divide-slate-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
           <div className="p-5">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Total</p>
             <p className="mt-2 text-3xl font-bold text-slate-950">{users.length}</p>
@@ -271,6 +272,13 @@ export const UserManagement = () => {
             </p>
             <p className="mt-2 text-3xl font-bold text-emerald-950">{employeeCount}</p>
             <p className="mt-1 text-sm text-slate-500">pengguna absensi</p>
+          </div>
+          <div className="p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet-600">
+              Geofence
+            </p>
+            <p className="mt-2 text-3xl font-bold text-violet-950">{assignedGeofenceCount}</p>
+            <p className="mt-1 text-sm text-slate-500">akun sudah punya lokasi</p>
           </div>
         </div>
       </div>
@@ -458,7 +466,94 @@ export const UserManagement = () => {
           </p>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="block md:hidden">
+          {loading ? (
+            <div className="px-6 py-10 text-center">
+              <div className="spinner mx-auto h-8 w-8" />
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="px-6 py-10 text-center text-slate-500">
+              <div className="mx-auto max-w-sm">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"
+                    />
+                  </svg>
+                </div>
+                <p className="font-bold text-slate-950">User tidak ditemukan</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Coba kata kunci atau filter role yang berbeda.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {filteredUsers.map((user) => {
+                const displayName = user.name || user.email.split('@')[0]
+                const isDeleting = deletingUserId === user.user_id
+
+                return (
+                  <article key={user.user_id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-700 ring-1 ring-slate-200">
+                        {getInitials(displayName, user.email)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate font-semibold text-slate-950">{displayName}</p>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${
+                              user.role === 'admin'
+                                ? 'bg-blue-50 text-blue-700 ring-blue-100'
+                                : 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                            }`}
+                          >
+                            {user.role === 'admin' ? 'Admin' : 'Karyawan'}
+                          </span>
+                        </div>
+                        <p className="mt-1 break-all text-xs text-slate-500">{user.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                          Joined
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-700">
+                          {formatDate(user.created_at)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                          Geofence
+                        </p>
+                        <p className="mt-1 truncate font-semibold text-slate-700">
+                          {user.geofence ? user.geofence.location_name : '-'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(user)}
+                      disabled={isDeleting}
+                      className="mt-4 w-full rounded-lg border border-rose-200 px-3 py-2 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isDeleting ? 'Menghapus...' : 'Delete User'}
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
