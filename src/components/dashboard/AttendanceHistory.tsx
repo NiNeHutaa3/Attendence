@@ -27,6 +27,44 @@ const formatTime = (value?: string | null) =>
       })
     : '-'
 
+const calculateLocationAccuracy = (distance?: number | null, radius?: number | null) => {
+  const numericDistance = Number(distance)
+  const numericRadius = Number(radius)
+
+  if (!Number.isFinite(numericDistance) || !Number.isFinite(numericRadius) || numericRadius <= 0) {
+    return null
+  }
+
+  return Math.round(Math.max(0, Math.min(100, (1 - numericDistance / numericRadius) * 100)))
+}
+
+const getAccuracyStyle = (accuracy: number) => {
+  if (accuracy >= 75) {
+    return {
+      label: 'Sangat dekat',
+      text: 'text-emerald-700',
+      bar: 'bg-emerald-500',
+      badge: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    }
+  }
+
+  if (accuracy >= 40) {
+    return {
+      label: 'Cukup dekat',
+      text: 'text-amber-700',
+      bar: 'bg-amber-500',
+      badge: 'bg-amber-50 text-amber-700 ring-amber-100',
+    }
+  }
+
+  return {
+    label: 'Dekat batas radius',
+    text: 'text-rose-700',
+    bar: 'bg-rose-500',
+    badge: 'bg-rose-50 text-rose-700 ring-rose-100',
+  }
+}
+
 const getSessionToken = async () => {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -122,13 +160,21 @@ export const AttendanceHistory = () => {
     ['Check-in Photo', selectedCheckInPhoto],
     ['Check-out Photo', selectedCheckOutPhoto],
   ]
+  const geofenceRadius = selectedRecord?.user?.geofence?.radius
+  const checkInLocation = selectedRecord?.locations.find(
+    (location) => (location.event_type || 'checkin') === 'checkin'
+  )
+  const checkInAccuracy = calculateLocationAccuracy(
+    checkInLocation?.distance_from_center,
+    geofenceRadius
+  )
 
   return (
       <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-950">Riwayat Absensi</h2>
-          <p className="mt-1 text-sm text-slate-500">Filter check-in harian berdasarkan tanggal dan karyawan.</p>
+          <p className="mt-1 text-sm text-slate-500">Cari, periksa, dan unduh catatan kehadiran tim.</p>
         </div>
       </div>
 
@@ -136,7 +182,7 @@ export const AttendanceHistory = () => {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_1fr_14rem]">
           <div>
             <label htmlFor="startDate" className="mb-2 block text-sm font-semibold text-slate-700">
-              Start Date
+              Tanggal Mulai
             </label>
             <input
               type="date"
@@ -149,7 +195,7 @@ export const AttendanceHistory = () => {
 
           <div>
             <label htmlFor="endDate" className="mb-2 block text-sm font-semibold text-slate-700">
-              End Date
+              Tanggal Akhir
             </label>
             <input
               type="date"
@@ -255,15 +301,15 @@ export const AttendanceHistory = () => {
       {error && <div className="alert-error">{error}</div>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <p className="mb-1 text-sm font-semibold text-slate-500">Jumlah</p>
           <p className="text-2xl sm:text-3xl font-bold text-slate-950">{filteredRecords.length}</p>
         </div>
-        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4 sm:p-5">
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5">
           <p className="mb-1 text-sm font-semibold text-emerald-700">Valid</p>
           <p className="text-2xl sm:text-3xl font-bold text-emerald-950">{validRecords}</p>
         </div>
-        <div className="rounded-lg border border-rose-100 bg-rose-50 p-4 sm:p-5">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 sm:p-5">
           <p className="mb-1 text-sm font-semibold text-rose-700">Invalid</p>
           <p className="text-2xl sm:text-3xl font-bold text-rose-950">{invalidRecords}</p>
         </div>
@@ -276,7 +322,7 @@ export const AttendanceHistory = () => {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Employee
+                  Karyawan
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                   Check-in
@@ -288,7 +334,7 @@ export const AttendanceHistory = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Actions
+                  Aksi
                 </th>
               </tr>
             </thead>
@@ -313,9 +359,9 @@ export const AttendanceHistory = () => {
                           />
                         </svg>
                       </div>
-                      <p className="font-bold text-slate-950">No records found</p>
+                      <p className="font-bold text-slate-950">Data tidak ditemukan</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Try another date, employee, or status filter.
+                        Coba rentang tanggal, karyawan, atau filter status yang lain.
                       </p>
                     </div>
                   </td>
@@ -354,9 +400,9 @@ export const AttendanceHistory = () => {
                       <button
                         type="button"
                         onClick={() => setSelectedRecord(record)}
-                        className="text-xs font-bold text-blue-600 transition-colors hover:text-blue-700"
+                        className="text-xs font-bold text-teal-700 transition-colors hover:text-teal-900"
                       >
-                        View Details
+                        Lihat Detail
                       </button>
                     </td>
                   </tr>
@@ -369,11 +415,11 @@ export const AttendanceHistory = () => {
 
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  Attendance Detail
+                <p className="text-xs font-bold uppercase tracking-wider text-teal-700">
+                  Detail Kehadiran
                 </p>
                 <h3 className="mt-1 text-xl font-bold text-slate-950">
                   {selectedRecord.user?.name || 'Profil tidak ditemukan'}
@@ -412,9 +458,9 @@ export const AttendanceHistory = () => {
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-bold uppercase text-slate-500">Evidence</p>
+                  <p className="text-xs font-bold uppercase text-slate-500">Akurasi Lokasi</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">
-                    {selectedRecord.photos.length} foto, {selectedRecord.locations.length} lokasi
+                    {checkInAccuracy === null ? 'Belum tersedia' : `${checkInAccuracy}%`}
                   </p>
                 </div>
               </div>
@@ -442,10 +488,17 @@ export const AttendanceHistory = () => {
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="mb-3 text-sm font-bold text-slate-950">Location Logs</p>
+                    <p className="mb-3 text-sm font-bold text-slate-950">Catatan Lokasi</p>
                   <div className="space-y-3">
                     {selectedRecord.locations.length > 0 ? (
-                      selectedRecord.locations.map((location) => (
+                      selectedRecord.locations.map((location) => {
+                        const accuracy = calculateLocationAccuracy(
+                          location.distance_from_center,
+                          geofenceRadius
+                        )
+                        const accuracyStyle = accuracy === null ? null : getAccuracyStyle(accuracy)
+
+                        return (
                         <div key={location.location_id} className="rounded-lg bg-slate-50 p-3 text-sm">
                           <div className="flex items-center justify-between gap-3">
                             <span className="font-bold capitalize text-slate-950">
@@ -461,8 +514,32 @@ export const AttendanceHistory = () => {
                           <p className="mt-1 text-slate-600">
                             Jarak: {Number(location.distance_from_center).toFixed(1)} m
                           </p>
+                          <p className="mt-1 text-slate-600">
+                            Radius geofence: {geofenceRadius ? `${Number(geofenceRadius)} m` : '-'}
+                          </p>
+                          {accuracy !== null && accuracyStyle && (
+                            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                                  Akurasi lokasi
+                                </span>
+                                <span className={`rounded-full px-2 py-0.5 text-xs font-bold ring-1 ${accuracyStyle.badge}`}>
+                                  {accuracy}%
+                                </span>
+                              </div>
+                              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className={`h-full rounded-full ${accuracyStyle.bar}`}
+                                  style={{ width: `${accuracy}%` }}
+                                />
+                              </div>
+                              <p className={`mt-2 text-xs font-semibold ${accuracyStyle.text}`}>
+                                {accuracyStyle.label}
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      ))
+                      )})
                     ) : (
                       <p className="text-sm text-slate-500">Belum ada data lokasi.</p>
                     )}
@@ -470,7 +547,7 @@ export const AttendanceHistory = () => {
                 </div>
 
                 <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="mb-3 text-sm font-bold text-slate-950">Access Logs</p>
+                  <p className="mb-3 text-sm font-bold text-slate-950">Catatan Akses</p>
                   <div className="space-y-3">
                     {selectedRecord.access_logs.length > 0 ? (
                       selectedRecord.access_logs.map((log) => (

@@ -12,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
-      <body className="bg-[#0F172A] text-[#E2E8F0] font-inter antialiased">
+    <html lang="id" data-scroll-behavior="smooth">
+      <body className="bg-slate-50 text-slate-800 font-inter antialiased">
         <div className="min-h-screen">{children}</div>
       </body>
     </html>

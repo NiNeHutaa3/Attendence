@@ -78,7 +78,7 @@ export const AdminDashboardStats = () => {
     color?: 'blue' | 'green' | 'red' | 'yellow'
   }) => {
     const colorMap = {
-      blue: { bg: 'bg-blue-50', text: 'text-blue-600', ring: 'ring-blue-100' },
+      blue: { bg: 'bg-teal-50', text: 'text-teal-700', ring: 'ring-teal-100' },
       green: { bg: 'bg-emerald-50', text: 'text-emerald-600', ring: 'ring-emerald-100' },
       red: { bg: 'bg-rose-50', text: 'text-rose-600', ring: 'ring-rose-100' },
       yellow: { bg: 'bg-amber-50', text: 'text-amber-600', ring: 'ring-amber-100' },
@@ -124,7 +124,7 @@ export const AdminDashboardStats = () => {
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Total Employees"
+          label="Total Karyawan"
           value={stats.totalUsers}
           color="blue"
           icon={
@@ -139,7 +139,7 @@ export const AdminDashboardStats = () => {
           }
         />
         <StatCard
-          label="Check-in Today"
+          label="Check-in Hari Ini"
           value={stats.attendanceToday}
           color="yellow"
           icon={
@@ -154,7 +154,7 @@ export const AdminDashboardStats = () => {
           }
         />
         <StatCard
-          label="Valid Check-in"
+          label="Check-in Valid"
           value={stats.validCheckIns}
           color="green"
           icon={
@@ -168,7 +168,7 @@ export const AdminDashboardStats = () => {
           }
         />
         <StatCard
-          label="Invalid Check-in"
+          label="Perlu Diperiksa"
           value={stats.invalidCheckIns}
           color="red"
           icon={
@@ -187,23 +187,23 @@ export const AdminDashboardStats = () => {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/60">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-blue-600">
-                Validation Health
+              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-teal-700">
+                Kualitas Validasi
               </p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-950">Today at a glance</h2>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-950">Ringkasan hari ini</h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                Compare valid and invalid check-ins to spot attendance issues early in the day.
+                Bandingkan data valid dan tidak valid untuk menemukan kendala absensi lebih cepat.
               </p>
             </div>
             <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
-              {stats.attendanceToday} records
+              {stats.attendanceToday} catatan
             </span>
           </div>
 
           <div className="mt-8 space-y-6">
             <div>
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-semibold text-slate-700">Valid check-ins</span>
+                <span className="font-semibold text-slate-700">Check-in valid</span>
                 <span className="font-semibold text-emerald-600">{validRate}%</span>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-slate-100">
@@ -216,7 +216,7 @@ export const AdminDashboardStats = () => {
 
             <div>
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-semibold text-slate-700">Invalid check-ins</span>
+                <span className="font-semibold text-slate-700">Perlu diperiksa</span>
                 <span className="font-semibold text-rose-600">{invalidRate}%</span>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-slate-100">
@@ -231,14 +231,14 @@ export const AdminDashboardStats = () => {
 
         <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-lg shadow-amber-100/50">
           <p className="text-sm font-semibold uppercase tracking-[0.12em] text-amber-700">
-            Admin Focus
+            Fokus Admin
           </p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">
-            Review exceptions first
+            Periksa kendala lebih dulu
           </h2>
           <p className="mt-3 text-sm leading-6 text-amber-900/75">
-            Invalid records usually need quick checking: wrong location, GPS drift, or missed office
-            radius. Open Attendance Review and filter by invalid status.
+            Catatan tidak valid biasanya perlu diperiksa: lokasi keliru, akurasi GPS rendah, atau
+            posisi berada di luar radius kantor.
           </p>
         </div>
       </div>

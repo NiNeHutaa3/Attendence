@@ -42,6 +42,7 @@ export const LoginForm = () => {
   const [hydrated, setHydrated] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -101,7 +102,7 @@ export const LoginForm = () => {
 
   return (
     <div className="w-full">
-      {error && <div className="alert-error">{error}</div>}
+      {error && <div className="alert-error mb-5 text-sm">{error}</div>}
       <form onSubmit={handleLogin} action="javascript:void(0)" className="space-y-5">
 
 
@@ -116,7 +117,7 @@ export const LoginForm = () => {
             required
             disabled={!hydrated || loading}
             placeholder="name@gmail.com"
-            className="h-11 w-full rounded-lg border border-slate-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-black"
+            className="input-base text-sm"
           />
         </div>
 
@@ -124,26 +125,35 @@ export const LoginForm = () => {
           <label className="text-sm font-medium text-slate-700">
             Password
           </label>
+          <div className="relative">
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={!hydrated || loading}
-            placeholder="••••••••"
-            className="h-11 w-full rounded-lg border border-slate-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-black"
+            placeholder="Masukkan password"
+            className="input-base pr-20 text-sm"
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword((current) => !current)}
+            className="absolute inset-y-0 right-0 px-3 text-xs font-bold text-teal-700 transition hover:text-teal-900"
+          >
+            {showPassword ? 'Sembunyikan' : 'Lihat'}
+          </button>
+          </div>
         </div>
 
         <button
           type="submit"
           disabled={!hydrated || loading}
-          className="mt-4 h-11 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-500 transition disabled:opacity-60"
+          className="btn-primary mt-4 w-full text-sm"
         >
           {!hydrated ? 'Memuat form...' : loading ? 'Memproses...' : 'Masuk'}
         </button>
 
-        <div className="pt-4 text-center text-sm text-slate-500 border-t">
+        <div className="border-t border-slate-100 pt-4 text-center text-sm leading-6 text-slate-500">
           Belum punya akun? Hubungi admin untuk dibuatkan akses.
         </div>
 

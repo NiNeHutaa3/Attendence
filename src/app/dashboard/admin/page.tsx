@@ -46,8 +46,8 @@ export default function AdminDashboard() {
   const tabs: DashboardNavItem[] = [
     {
       id: 'overview',
-      label: 'Overview',
-      description: 'Daily stats and validation health',
+      label: 'Ringkasan',
+      description: 'Statistik dan validasi hari ini',
       icon: (
         <svg
           className="w-5 h-5"
@@ -66,8 +66,8 @@ export default function AdminDashboard() {
     },
     {
       id: 'users',
-      label: 'Users',
-      description: 'Create and manage employee access',
+      label: 'Pengguna',
+      description: 'Kelola akses karyawan',
       icon: (
         <svg
           className="w-5 h-5"
@@ -86,8 +86,8 @@ export default function AdminDashboard() {
     },
     {
       id: 'attendance',
-      label: 'Attendance',
-      description: 'Review check-in and check-out logs',
+      label: 'Riwayat',
+      description: 'Periksa catatan kehadiran',
       icon: (
         <svg
           className="w-5 h-5"
@@ -108,19 +108,19 @@ export default function AdminDashboard() {
 
   const pageCopy = {
     overview: {
-      title: 'Admin Control Center',
-      subtitle: 'Scan daily attendance health, employee coverage, and geofence validation from one clean workspace.',
-      eyebrow: 'Admin Workspace',
+      title: 'Ringkasan Kehadiran',
+      subtitle: 'Pantau kehadiran harian, jumlah karyawan, dan hasil validasi lokasi dari satu dashboard.',
+      eyebrow: 'Dashboard Admin',
     },
     users: {
-      title: 'Employee Directory',
-      subtitle: 'Create employee accounts, review roles, and keep access tidy without leaving the dashboard.',
-      eyebrow: 'User Management',
+      title: 'Direktori Pengguna',
+      subtitle: 'Buat akun karyawan, periksa role, dan kelola akses dashboard dengan lebih mudah.',
+      eyebrow: 'Kelola Pengguna',
     },
     attendance: {
-      title: 'Attendance Review',
-      subtitle: 'Filter check-in records by date or employee and quickly spot incomplete or invalid attendance.',
-      eyebrow: 'Daily Records',
+      title: 'Riwayat Kehadiran',
+      subtitle: 'Filter catatan berdasarkan tanggal atau karyawan dan temukan data yang perlu diperiksa.',
+      eyebrow: 'Catatan Harian',
     },
   }[activeTab]
 

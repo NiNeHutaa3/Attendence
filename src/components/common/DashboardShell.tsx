@@ -58,11 +58,11 @@ export const DashboardShell = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 border-r border-slate-200 bg-white lg:flex lg:flex-col">
+    <div className="app-surface min-h-screen text-slate-800">
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 border-r border-slate-200/80 bg-white/95 lg:flex lg:flex-col">
         <div className="flex-shrink-0 border-b border-slate-100 px-6 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/25">
+            <div className="brand-gradient flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-lg shadow-teal-500/25">
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -93,7 +93,7 @@ export const DashboardShell = ({
                   onClick={() => onNavChange?.(item.id)}
                   className={`group flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                      ? 'brand-gradient text-white shadow-lg shadow-teal-500/20'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                   }`}
                 >
@@ -108,7 +108,7 @@ export const DashboardShell = ({
                     <span className="block text-sm font-semibold">{item.label}</span>
                     <span
                       className={`mt-0.5 block text-xs leading-5 ${
-                        isActive ? 'text-blue-100' : 'text-slate-500'
+                        isActive ? 'text-teal-50' : 'text-slate-500'
                       }`}
                     >
                       {item.description}
@@ -149,7 +149,7 @@ export const DashboardShell = ({
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-xl lg:hidden">
           <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/25">
+              <div className="brand-gradient flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-lg shadow-teal-500/25">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -185,7 +185,7 @@ export const DashboardShell = ({
                   onClick={() => onNavChange?.(item.id)}
                   className={`flex min-w-max items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
                     activeItem === item.id
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                      ? 'brand-gradient text-white shadow-lg shadow-teal-500/20'
                       : 'bg-slate-100 text-slate-600'
                   }`}
                 >
@@ -198,22 +198,23 @@ export const DashboardShell = ({
         )}
 
         <main className="px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-          <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 lg:mb-8">
+          <section className="relative mb-6 overflow-hidden rounded-3xl bg-slate-900 text-white shadow-xl shadow-slate-300/50 lg:mb-8">
+            <div className="dashboard-grid absolute inset-0 opacity-40" />
             <div className="grid gap-5 p-5 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-end">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">
+              <div className="relative">
+                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-teal-300">
                   {eyebrow}
                 </p>
-                <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-4xl">
                   {title}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{subtitle}</p>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">{subtitle}</p>
               </div>
-              <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  Signed in
+              <div className="relative min-w-0 rounded-xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-teal-200">
+                  Login aktif
                 </p>
-                <p className="mt-1 max-w-[18rem] truncate text-sm font-semibold text-slate-900">
+                <p className="mt-1 max-w-[18rem] truncate text-sm font-semibold text-white">
                   {user?.email}
                 </p>
               </div>

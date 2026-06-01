@@ -230,10 +230,10 @@ export const UserManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="grid gap-6 border-b border-slate-200 bg-slate-50 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700">
               Directory
             </p>
             <h2 className="mt-2 text-2xl font-bold text-slate-950">Kelola User</h2>
@@ -295,7 +295,7 @@ export const UserManagement = () => {
       )}
 
       {showForm && (
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
             <h3 className="text-lg font-bold text-slate-950">Tambah Pengguna Baru</h3>
             <p className="mt-1 text-sm text-slate-500">
@@ -425,7 +425,7 @@ export const UserManagement = () => {
         </div>
       )}
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_12rem]">
           <div>
             <label htmlFor="searchUser" className="sr-only">
@@ -458,7 +458,7 @@ export const UserManagement = () => {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
           <h3 className="text-base font-bold text-slate-950">Daftar Pengguna</h3>
           <p className="mt-1 text-sm text-slate-500">

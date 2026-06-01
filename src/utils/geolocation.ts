@@ -28,6 +28,7 @@ export type VerifiedLocationResult = {
   distance: number
   isValid: boolean
   isReliable: boolean
+  isWithinGeofence: boolean
   issues: string[]
   samples: LocationSample[]
 }
@@ -152,13 +153,13 @@ export const verifyGeofenceLocation = async (
   }
 
   const bestSample = [...samples].sort((a, b) => a.accuracy - b.accuracy)[0]
-  const issues: string[] = []
+  const qualityIssues: string[] = []
   let maxSpread = 0
   let maxSpeed = 0
 
   samples.forEach((sample, index) => {
     if (sample.accuracy > MAX_ACCEPTABLE_ACCURACY_METERS) {
-      issues.push(`Akurasi GPS terlalu rendah (${Math.round(sample.accuracy)} m).`)
+      qualityIssues.push(`Akurasi GPS terlalu rendah (${Math.round(sample.accuracy)} m).`)
     }
 
     if (index === 0) {
@@ -183,26 +184,28 @@ export const verifyGeofenceLocation = async (
   })
 
   if (maxSpread > MAX_SAMPLE_SPREAD_METERS) {
-    issues.push(`Sampel GPS berubah terlalu jauh (${Math.round(maxSpread)} m).`)
+    qualityIssues.push(`Sampel GPS berubah terlalu jauh (${Math.round(maxSpread)} m).`)
   }
 
   if (maxSpeed > MAX_REASONABLE_SPEED_MPS) {
-    issues.push(`Perubahan lokasi terlalu cepat (${maxSpeed.toFixed(1)} m/s).`)
+    qualityIssues.push(`Perubahan lokasi terlalu cepat (${maxSpeed.toFixed(1)} m/s).`)
   }
 
   const dist = calculateDistance(bestSample.lat, bestSample.lng, centerLat, centerLng)
   const conservativeDistance = dist + bestSample.accuracy
 
-  if (conservativeDistance > radius) {
-    issues.push(
+  const isWithinGeofence = conservativeDistance <= radius
+  const geofenceIssues = isWithinGeofence
+    ? []
+    : [
       `Lokasi belum aman untuk divalidasi. Jarak ${dist.toFixed(1)} m dengan akurasi ${Math.round(
         bestSample.accuracy
       )} m melewati radius ${radius} m.`
-    )
-  }
+    ]
 
-  const isReliable = issues.length === 0
-  const isValid = isReliable && conservativeDistance <= radius
+  const issues = [...geofenceIssues, ...qualityIssues]
+  const isReliable = qualityIssues.length === 0
+  const isValid = isReliable && isWithinGeofence
 
   return {
     lat: bestSample.lat,
@@ -211,6 +214,7 @@ export const verifyGeofenceLocation = async (
     distance: dist,
     isValid,
     isReliable,
+    isWithinGeofence,
     issues,
     samples,
   }

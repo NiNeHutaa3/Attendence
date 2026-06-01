@@ -441,13 +441,20 @@ export const CheckInComponent = () => {
   const currentStep =
     todayAttendance && !isCheckOutFlow ? 4 : photoBlob ? 4 : cameraActive ? 3 : userLocation ? 2 : 1
   const stepItems = ['Lokasi', 'Validasi', 'Foto', 'Kirim']
+  const isOutsideGeofence = locationVerification?.isWithinGeofence === false
+  const invalidLocationTitle = isOutsideGeofence
+    ? 'Lokasi di luar radius kantor'
+    : 'Kualitas GPS perlu diperiksa'
+  const invalidLocationMessage = isOutsideGeofence
+    ? `Posisi kamu berada di luar radius ${activeGeofence.radius} m dari ${activeGeofence.locationName}. Silakan mendekat ke area kantor dan ambil ulang lokasi.`
+    : 'Lokasi ditolak karena kualitas GPS terdeteksi tidak stabil atau mencurigakan. Matikan aplikasi pemalsuan lokasi, pastikan GPS aktif, lalu coba lagi.'
 
   return (
     <section className="space-y-4 lg:space-y-5">
-      <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">
               Proses Absensi
             </p>
             <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-950 lg:text-2xl">
@@ -470,7 +477,7 @@ export const CheckInComponent = () => {
                     done
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                       : active
-                        ? 'border-blue-200 bg-blue-50 text-blue-700'
+                        ? 'border-teal-200 bg-teal-50 text-teal-700'
                         : 'border-slate-200 bg-slate-50 text-slate-400'
                   }`}
                 >
@@ -492,7 +499,7 @@ export const CheckInComponent = () => {
       )}
 
       {todayAttendance && !isCheckOutFlow ? (
-        <div className="overflow-hidden rounded-lg border border-emerald-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
           <div className="grid gap-0 lg:grid-cols-[1fr_18rem]">
             <div className="p-5 sm:p-8">
               <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
@@ -541,7 +548,7 @@ export const CheckInComponent = () => {
           </div>
         </div>
       ) : photoBlob ? (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="grid gap-0 lg:grid-cols-[1fr_18rem]">
             <div className="p-5 sm:p-6">
               <p className="mb-3 text-sm font-bold text-slate-700">Preview Foto</p>
@@ -596,11 +603,11 @@ export const CheckInComponent = () => {
           </div>
         </div>
       ) : cameraActive ? (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="p-5 sm:p-6">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700">
                   Kamera
                 </p>
                 <h3 className="mt-1 text-xl font-bold text-slate-950 lg:text-2xl">Ambil bukti foto</h3>
@@ -622,9 +629,9 @@ export const CheckInComponent = () => {
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="p-5 sm:p-8">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-blue-100 lg:mb-6 lg:h-14 lg:w-14">
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100 lg:mb-6 lg:h-14 lg:w-14">
                 <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -643,15 +650,14 @@ export const CheckInComponent = () => {
                   ? `Verifikasi lokasi ${actionLabel}`
                   : isValid
                     ? 'Lokasi valid, lanjut foto'
-                    : 'Lokasi di luar area kantor'}
+                    : invalidLocationTitle}
               </h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
                 {!userLocation
                   ? `Tekan tombol untuk mengecek lokasi sebelum ${actionLabel}.`
                   : isValid
                     ? 'Posisi kamu berada di area yang diizinkan. Lanjutkan dengan mengambil foto kehadiran.'
-                    : locationVerification?.issues[0] ||
-                      'Saat ini lokasi belum memenuhi validasi. Ambil ulang lokasi setelah posisimu sesuai.'}
+                    : invalidLocationMessage}
               </p>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -669,13 +675,27 @@ export const CheckInComponent = () => {
     ${
       isBusy
         ? 'cursor-not-allowed bg-slate-200 text-slate-500'
-        : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30'
+        : 'bg-gradient-to-r from-teal-700 to-teal-600 text-white shadow-lg shadow-teal-500/20 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-teal-500/30'
     }
   `}
 >
 
   {/* ICON */}
-  
+  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 11c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zm0 10s7-4.438 7-11a7 7 0 10-14 0c0 6.562 7 11 7 11z"
+      />
+    </svg>
+  </div>
 
   {/* TEXT */}
   <div className="flex flex-col items-start text-left">
@@ -689,7 +709,7 @@ export const CheckInComponent = () => {
     <span
       className={`
         text-xs
-        ${isBusy ? 'text-slate-400' : 'text-blue-100'}
+        ${isBusy ? 'text-slate-400' : 'text-teal-100'}
       `}
     >
       Validasi area kantor
@@ -836,7 +856,7 @@ export const CheckInComponent = () => {
 
           <aside className="hidden space-y-5 lg:block">
             <div
-              className={`rounded-lg border p-5 ${
+              className={`rounded-2xl border p-5 ${
                 userLocation
                   ? isValid
                     ? 'border-emerald-100 bg-emerald-50'
@@ -863,13 +883,13 @@ export const CheckInComponent = () => {
                   ? 'Ambil lokasi untuk mulai.'
                   : isValid
                     ? 'Lokasi lolos validasi radius dan akurasi.'
-                    : locationVerification?.isReliable === false
-                      ? 'Lokasi ditolak karena kualitas GPS mencurigakan.'
-                      : 'Kamu berada di luar radius kantor.'}
+                    : isOutsideGeofence
+                      ? `Kamu berada di luar radius ${activeGeofence.radius} m dari area kantor.`
+                      : 'Lokasi ditolak karena kualitas GPS mencurigakan.'}
               </p>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
                 Jarak ke {activeGeofence.locationName}
               </p>

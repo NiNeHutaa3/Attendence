@@ -127,7 +127,7 @@ export async function GET(request: Request) {
   ] = await Promise.all([
     serviceSupabase
       .from('users')
-      .select('user_id,email,name,role,geofence_id')
+      .select('user_id,email,name,role,geofence_id,geofence:geofence_id(location_name,radius)')
       .in('user_id', userIds),
     serviceSupabase
       .from('photo_attendance')
@@ -152,7 +152,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: firstError.message }, { status: 500 })
   }
 
-  const usersById = new Map((users || []).map((user) => [user.user_id, user]))
+  const usersById = new Map(
+    (users || []).map((user) => [
+      user.user_id,
+      {
+        ...user,
+        geofence: Array.isArray(user.geofence) ? user.geofence[0] || null : user.geofence,
+      },
+    ])
+  )
   const groupByAttendance = <T extends { attendance_id: string }>(rows: T[] = []) =>
     rows.reduce<Record<string, T[]>>((groups, row) => {
       groups[row.attendance_id] = groups[row.attendance_id] || []

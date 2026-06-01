@@ -65,17 +65,19 @@ export default function KaryawanDashboard() {
     .toUpperCase()
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="app-surface min-h-screen text-slate-900">
 
   {/* HEADER */}
-  <header className="sticky top-0 z-40 hidden border-b border-slate-200/80 bg-white/80 backdrop-blur-xl lg:block">
+  <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
     <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
 
       {/* LEFT */}
       <div className="flex items-center gap-4">
 
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md">
-          ✓
+        <div className="brand-gradient flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-md shadow-teal-500/20">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
 
         <div>
@@ -84,7 +86,7 @@ export default function KaryawanDashboard() {
           </p>
 
           <p className="text-xs text-slate-500">
-            Employee Dashboard
+            Portal Karyawan
           </p>
         </div>
 
@@ -103,14 +105,14 @@ export default function KaryawanDashboard() {
           </p>
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-700">
+        <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-sm font-bold text-teal-700 sm:flex">
           {initials}
         </div>
 
         <button
           type="button"
           onClick={handleLogout}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 sm:px-4"
         >
           Logout
         </button>
@@ -123,25 +125,26 @@ export default function KaryawanDashboard() {
   <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8 lg:py-8">
 
     {/* HERO */}
-    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 text-slate-950 shadow-sm lg:rounded-3xl lg:border-white/60 lg:bg-gradient-to-br lg:from-slate-900 lg:via-slate-800 lg:to-blue-900 lg:p-8 lg:text-white lg:shadow-2xl">
+    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 p-5 text-white shadow-xl shadow-slate-300/60 lg:p-8">
 
       {/* BACKGROUND GLOW */}
-      <div className="absolute right-0 top-0 hidden h-64 w-64 rounded-full bg-blue-500/20 blur-3xl lg:block" />
+      <div className="dashboard-grid absolute inset-0 opacity-30" />
+      <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-teal-400/20 blur-3xl" />
 
       <div className="relative z-10 grid gap-5 lg:gap-10 lg:grid-cols-[1fr_320px]">
 
         {/* LEFT */}
         <div>
 
-          <p className="hidden text-sm font-semibold uppercase tracking-[0.18em] text-blue-300 lg:block">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-300 lg:text-sm">
             Dashboard Hari Ini
           </p>
 
-          <h1 className="text-2xl font-bold leading-tight text-slate-950 lg:mt-4 lg:text-5xl lg:text-white">
+          <h1 className="mt-3 text-2xl font-bold leading-tight text-white lg:text-5xl">
             Selamat datang, {userName}
           </h1>
 
-          <p className="mt-5 hidden max-w-2xl text-base leading-7 text-slate-300 lg:block">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 lg:mt-5 lg:text-base lg:leading-7">
             Lakukan check-in dengan validasi lokasi GPS dan dokumentasi foto untuk memastikan kehadiran tercatat dengan akurat.
           </p>
 
@@ -183,9 +186,9 @@ export default function KaryawanDashboard() {
         </div>
 
         {/* RIGHT */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:rounded-3xl lg:border-white/10 lg:bg-white/10 lg:p-6 lg:backdrop-blur">
+        <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur lg:rounded-3xl lg:p-6">
 
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 lg:text-sm lg:text-slate-300">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-200 lg:text-sm">
             Waktu Sekarang
           </p>
 
@@ -196,7 +199,7 @@ export default function KaryawanDashboard() {
             })}
           </p>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500 lg:mt-4 lg:text-slate-300">
+          <p className="mt-2 text-sm leading-6 text-slate-300 lg:mt-4">
             {now.toLocaleDateString('id-ID', {
               weekday: 'long',
               year: 'numeric',
@@ -252,7 +255,7 @@ export default function KaryawanDashboard() {
 
               <div key={number} className="flex items-start gap-4">
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-sm font-bold text-teal-700">
                   {number}
                 </div>
 
