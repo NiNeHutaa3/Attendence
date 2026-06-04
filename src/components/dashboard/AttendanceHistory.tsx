@@ -105,7 +105,10 @@ export const AttendanceHistory = () => {
       })
 
       if (!response.ok) {
-        const body = await response.json().catch(() => null)
+        const contentType = response.headers.get('content-type') || ''
+        const body = contentType.includes('application/json')
+          ? await response.json().catch(() => null)
+          : { error: await response.text() }
         throw new Error(body?.error || 'Gagal memuat daftar karyawan')
       }
 
@@ -135,7 +138,10 @@ export const AttendanceHistory = () => {
       })
 
       if (!response.ok) {
-        const body = await response.json().catch(() => null)
+        const contentType = response.headers.get('content-type') || ''
+        const body = contentType.includes('application/json')
+          ? await response.json().catch(() => null)
+          : { error: await response.text() }
         throw new Error(body?.error || 'Gagal memuat data absensi')
       }
 
@@ -272,7 +278,10 @@ export const AttendanceHistory = () => {
                 )
 
                 if (!res.ok) {
-                  const body = await res.json().catch(() => null)
+                  const contentType = res.headers.get('content-type') || ''
+                  const body = contentType.includes('application/json')
+                    ? await res.json().catch(() => null)
+                    : { error: await res.text() }
                   throw new Error(body?.error || 'Gagal mengunduh report')
                 }
 

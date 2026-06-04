@@ -4,13 +4,13 @@ const parseEnvNumber = (value: string | undefined, fallback: number) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
 }
-
 const DEFAULT_GEOFENCE_RADIUS = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_RADIUS, 100)
 const DEFAULT_GEOFENCE_LAT = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_LAT, -6.2088)
 const DEFAULT_GEOFENCE_LNG = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_LNG, 106.8456)
 const REQUIRED_LOCATION_SAMPLES = 3
 const LOCATION_SAMPLE_INTERVAL_MS = 1200
-const MAX_ACCEPTABLE_ACCURACY_METERS = 35
+const MAX_ACCEPTABLE_ACCURACY_METERS = 75
+const MAX_GEOFENCE_EDGE_TOLERANCE_METERS = 25
 const MAX_SAMPLE_SPREAD_METERS = 40
 const MAX_REASONABLE_SPEED_MPS = 12
 
@@ -47,29 +47,6 @@ const getCurrentPosition = (): Promise<GeolocationPosition> => {
       timeout: 12000,
       maximumAge: 0,
     })
-  })
-}
-
-export const getCurrentLocation = (): Promise<GeolocationCoordinates> => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported'))
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve(position.coords)
-      },
-      (error) => {
-        reject(error)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    )
   })
 }
 
@@ -114,29 +91,6 @@ export const calculateDistance = (
   return dist
 }
 
-export const isWithinGeofence = (
-  distance: number,
-  radius: number = DEFAULT_GEOFENCE_RADIUS
-): boolean => {
-  return distance <= radius
-}
-
-export const checkAttendanceValidity = (
-  userLat: number,
-  userLng: number,
-  centerLat: number = DEFAULT_GEOFENCE_LAT,
-  centerLng: number = DEFAULT_GEOFENCE_LNG,
-  radius: number = DEFAULT_GEOFENCE_RADIUS
-): { isValid: boolean; distance: number } => {
-  const dist = calculateDistance(userLat, userLng, centerLat, centerLng)
-  const isValid = isWithinGeofence(dist, radius)
-
-  return {
-    isValid,
-    distance: dist,
-  }
-}
-
 export const verifyGeofenceLocation = async (
   centerLat: number = DEFAULT_GEOFENCE_LAT,
   centerLng: number = DEFAULT_GEOFENCE_LNG,
@@ -153,13 +107,13 @@ export const verifyGeofenceLocation = async (
   }
 
   const bestSample = [...samples].sort((a, b) => a.accuracy - b.accuracy)[0]
-  const qualityIssues: string[] = []
+  const qualityWarnings: string[] = []
   let maxSpread = 0
   let maxSpeed = 0
 
   samples.forEach((sample, index) => {
     if (sample.accuracy > MAX_ACCEPTABLE_ACCURACY_METERS) {
-      qualityIssues.push(`Akurasi GPS terlalu rendah (${Math.round(sample.accuracy)} m).`)
+      qualityWarnings.push(`Akurasi GPS rendah pada salah satu sampel (${Math.round(sample.accuracy)} m).`)
     }
 
     if (index === 0) {
@@ -184,30 +138,49 @@ export const verifyGeofenceLocation = async (
   })
 
   if (maxSpread > MAX_SAMPLE_SPREAD_METERS) {
-    qualityIssues.push(`Sampel GPS berubah terlalu jauh (${Math.round(maxSpread)} m).`)
+    qualityWarnings.push(`Sampel GPS berubah cukup jauh (${Math.round(maxSpread)} m).`)
   }
 
   if (maxSpeed > MAX_REASONABLE_SPEED_MPS) {
-    qualityIssues.push(`Perubahan lokasi terlalu cepat (${maxSpeed.toFixed(1)} m/s).`)
+    qualityWarnings.push(`Perubahan lokasi antar sampel cukup cepat (${maxSpeed.toFixed(1)} m/s).`)
   }
 
   const dist = calculateDistance(bestSample.lat, bestSample.lng, centerLat, centerLng)
-  const conservativeDistance = dist + bestSample.accuracy
 
-  const isWithinGeofence = conservativeDistance <= radius
+  const edgeTolerance = Math.min(MAX_GEOFENCE_EDGE_TOLERANCE_METERS, Math.max(10, radius * 0.2))
+  const isWithinGeofence = dist <= radius + edgeTolerance
+
+  const hasAccuracyIssue = bestSample.accuracy > MAX_ACCEPTABLE_ACCURACY_METERS
+
   const geofenceIssues = isWithinGeofence
     ? []
     : [
-      `Lokasi belum aman untuk divalidasi. Jarak ${dist.toFixed(1)} m dengan akurasi ${Math.round(
-        bestSample.accuracy
-      )} m melewati radius ${radius} m.`
-    ]
+        `Lokasi berada di luar area absensi. Jarak ${dist.toFixed(
+          1
+        )} m dari pusat, batas valid sekitar ${Math.round(radius + edgeTolerance)} m.`,
+      ]
 
-  const issues = [...geofenceIssues, ...qualityIssues]
-  const isReliable = qualityIssues.length === 0
+  const accuracyIssues = hasAccuracyIssue
+    ? [
+        `Akurasi GPS terlalu rendah (${Math.round(
+          bestSample.accuracy
+        )} m). Coba aktifkan mode akurasi tinggi dan ambil ulang lokasi.`,
+      ]
+    : []
+
+  // Deduplicate issues supaya pesan yang sama (mis. “Akurasi GPS terlalu rendah ...”)
+  // tidak muncul berulang saat kualitas/fokus validasi menghasilkan string identik.
+  const issues = [...accuracyIssues, ...geofenceIssues, ...qualityWarnings]
+    .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+
+  const uniqueIssues = Array.from(new Set(issues))
+
+  const isReliable = !hasAccuracyIssue
   const isValid = isReliable && isWithinGeofence
 
+
   return {
+
     lat: bestSample.lat,
     lng: bestSample.lng,
     accuracy: bestSample.accuracy,
@@ -215,14 +188,7 @@ export const verifyGeofenceLocation = async (
     isValid,
     isReliable,
     isWithinGeofence,
-    issues,
+    issues: uniqueIssues,
     samples,
   }
-}
-
-export const formatDistance = (meters: number): string => {
-  if (meters < 1000) {
-    return `${Math.round(meters)} m`
-  }
-  return `${(meters / 1000).toFixed(2)} km`
 }

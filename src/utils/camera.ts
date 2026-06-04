@@ -122,14 +122,3 @@ export const getIPAddress = async (): Promise<string> => {
 export const getUserAgent = (): string => {
   return navigator.userAgent
 }
-
-export const detectVPN = async (): Promise<boolean> => {
-  try {
-    // This is a simple check - you can integrate with actual VPN detection APIs
-    // For now, we'll return false as a placeholder
-    return false
-  } catch (error) {
-    console.error('Error detecting VPN:', error)
-    return false
-  }
-}

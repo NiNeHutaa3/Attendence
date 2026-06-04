@@ -447,7 +447,7 @@ export const CheckInComponent = () => {
     : 'Kualitas GPS perlu diperiksa'
   const invalidLocationMessage = isOutsideGeofence
     ? `Posisi kamu berada di luar radius ${activeGeofence.radius} m dari ${activeGeofence.locationName}. Silakan mendekat ke area kantor dan ambil ulang lokasi.`
-    : 'Lokasi ditolak karena kualitas GPS terdeteksi tidak stabil atau mencurigakan. Matikan aplikasi pemalsuan lokasi, pastikan GPS aktif, lalu coba lagi.'
+    : 'Lokasi belum bisa divalidasi karena akurasi GPS terlalu rendah. Pastikan GPS aktif, izinkan akurasi tinggi, tunggu beberapa detik, lalu coba lagi.'
 
   return (
     <section className="space-y-4 lg:space-y-5">
@@ -885,7 +885,7 @@ export const CheckInComponent = () => {
                     ? 'Lokasi lolos validasi radius dan akurasi.'
                     : isOutsideGeofence
                       ? `Kamu berada di luar radius ${activeGeofence.radius} m dari area kantor.`
-                      : 'Lokasi ditolak karena kualitas GPS mencurigakan.'}
+                      : 'Lokasi belum valid karena akurasi GPS terlalu rendah.'}
               </p>
             </div>
 
@@ -915,8 +915,8 @@ export const CheckInComponent = () => {
                   </div>
                   {locationVerification.issues.length > 0 && (
                     <div className="mt-3 space-y-2">
-                      {locationVerification.issues.map((issue) => (
-                        <p key={issue} className="text-xs leading-5 text-rose-700">
+                      {locationVerification.issues.map((issue, idx) => (
+                        <p key={`${issue}-${idx}`} className="text-xs leading-5 text-rose-700">
                           {issue}
                         </p>
                       ))}

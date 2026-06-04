@@ -1,7 +1,9 @@
-- [x] Tambah endpoint API admin untuk export attendance ke Excel
-- [x] Update AttendanceHistory UI: filter tanggal/karyawan/status + input start/end + tombol “Unduh Report (Excel)”
-- [x] Implement download: panggil endpoint API dengan Authorization token
-- [x] Pastikan validasi admin di API memakai service role
-- [x] Jalankan build untuk memastikan tidak ada error TypeScript
+# TODO
 
+## Geofence validation fix
+- [ ] Update `src/utils/geolocation.ts` to use tolerant radius check: `dist <= radius` and require `bestSample.accuracy <= MAX_ACCEPTABLE_ACCURACY_METERS`.
+- [ ] Ensure `issues` differentiate: if fail due to accuracy, add issue text about GPS accuracy; if fail due to radius, add issue text about being outside radius.
+- [ ] Update `src/components/dashboard/CheckInComponent.tsx` (required) to show correct title/message based on issue reason (accuracy vs radius) so UI tidak selalu menyebut “di luar radius”.
+
+- [ ] Run `npm run dev` and test check-in near geofence.
 

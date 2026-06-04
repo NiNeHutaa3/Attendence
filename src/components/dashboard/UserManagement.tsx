@@ -44,6 +44,7 @@ export const UserManagement = () => {
   const [saving, setSaving] = useState(false)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -73,10 +74,13 @@ export const UserManagement = () => {
         },
       })
 
-      const result = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      const result = contentType.includes('application/json')
+        ? await response.json()
+        : { error: await response.text() }
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch users')
+        throw new Error(result?.error || 'Failed to fetch users')
       }
 
       setUsers(result.users || [])
@@ -110,6 +114,7 @@ export const UserManagement = () => {
   }
 
   const resetForm = () => {
+    setEditingUserId(null)
     setFormData({
       email: '',
       name: '',
@@ -119,13 +124,30 @@ export const UserManagement = () => {
     })
   }
 
-  const handleAddUser = async (e: React.FormEvent) => {
+  const startEditUser = (targetUser: User) => {
+    setEditingUserId(targetUser.user_id)
+    setFormData({
+      email: targetUser.email,
+      name: targetUser.name || '',
+      role: targetUser.role,
+      password: '',
+      geofenceId:
+        targetUser.role === 'karyawan'
+          ? targetUser.geofence_id || targetUser.geofence?.geofence_id || geofences[0]?.geofence_id || ''
+          : '',
+    })
+    setShowForm(true)
+    setError(null)
+    setSuccess(null)
+  }
+
+  const handleSubmitUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setSuccess(null)
 
-    if (!formData.email || !formData.name || !formData.password) {
-      setError('Nama, email, dan password wajib diisi')
+    if (!formData.email || !formData.name || (!editingUserId && !formData.password)) {
+      setError(editingUserId ? 'Nama dan email wajib diisi' : 'Nama, email, dan password wajib diisi')
       return
     }
 
@@ -139,14 +161,15 @@ export const UserManagement = () => {
       const token = await getSessionToken()
 
       const response = await fetch('/api/admin/users', {
-        method: 'POST',
+        method: editingUserId ? 'PUT' : 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          userId: editingUserId,
           email: formData.email,
-          password: formData.password,
+          password: formData.password || undefined,
           name: formData.name,
           role: formData.role,
           geofenceId: formData.role === 'karyawan' ? formData.geofenceId : null,
@@ -156,15 +179,19 @@ export const UserManagement = () => {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to add user')
+        throw new Error(result.error || (editingUserId ? 'Failed to update user' : 'Failed to add user'))
       }
 
-      setSuccess(`User ${formData.name} berhasil ditambahkan`)
+      setSuccess(
+        editingUserId
+          ? `User ${formData.name} berhasil diperbarui`
+          : `User ${formData.name} berhasil ditambahkan`
+      )
       resetForm()
       setShowForm(false)
       await fetchUsers()
     } catch (error: any) {
-      setError(getAuthErrorMessage(error.message || 'Failed to add user'))
+      setError(getAuthErrorMessage(error.message || 'Failed to save user'))
     } finally {
       setSaving(false)
     }
@@ -244,14 +271,15 @@ export const UserManagement = () => {
           <button
             type="button"
             onClick={() => {
-              setShowForm((current) => !current)
+              const nextShowForm = !showForm || Boolean(editingUserId)
+              setShowForm(nextShowForm)
               setError(null)
               setSuccess(null)
               resetForm()
             }}
             className="btn-primary h-11 w-full sm:w-auto"
           >
-            {showForm ? 'Tutup Form' : 'Tambah Pengguna'}
+            {showForm && !editingUserId ? 'Tutup Form' : 'Tambah Pengguna'}
           </button>
         </div>
 
@@ -297,13 +325,17 @@ export const UserManagement = () => {
       {showForm && (
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-lg font-bold text-slate-950">Tambah Pengguna Baru</h3>
+            <h3 className="text-lg font-bold text-slate-950">
+              {editingUserId ? 'Edit Data Pengguna' : 'Tambah Pengguna Baru'}
+            </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Akun dibuat di Supabase Auth dan langsung disinkronkan ke profil aplikasi.
+              {editingUserId
+                ? 'Perubahan akan disinkronkan ke Supabase Auth dan profil aplikasi.'
+                : 'Akun dibuat di Supabase Auth dan langsung disinkronkan ke profil aplikasi.'}
             </p>
           </div>
 
-          <form onSubmit={handleAddUser} className="space-y-5 p-5">
+          <form onSubmit={handleSubmitUser} className="space-y-5 p-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label htmlFor="name" className="mb-2 block text-sm font-semibold text-slate-700">
@@ -346,7 +378,7 @@ export const UserManagement = () => {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="input-base"
-                  placeholder="Minimal 6 karakter"
+                  placeholder={editingUserId ? 'Kosongkan jika tidak diganti' : 'Minimal 6 karakter'}
                 />
               </div>
 
@@ -361,6 +393,10 @@ export const UserManagement = () => {
                     setFormData({
                       ...formData,
                       role: e.target.value as UserRole,
+                      geofenceId:
+                        e.target.value === 'karyawan'
+                          ? formData.geofenceId || geofences[0]?.geofence_id || ''
+                          : '',
                     })
                   }
                   className="input-base"
@@ -418,7 +454,7 @@ export const UserManagement = () => {
                 Batal
               </button>
               <button type="submit" className="btn-primary" disabled={saving}>
-                {saving ? 'Menyimpan...' : 'Simpan User'}
+                {saving ? 'Menyimpan...' : editingUserId ? 'Update User' : 'Simpan User'}
               </button>
             </div>
           </form>
@@ -538,14 +574,24 @@ export const UserManagement = () => {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteUser(user)}
-                      disabled={isDeleting}
-                      className="mt-4 w-full rounded-lg border border-rose-200 px-3 py-2 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isDeleting ? 'Menghapus...' : 'Delete User'}
-                    </button>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => startEditUser(user)}
+                        disabled={isDeleting || saving}
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUser(user)}
+                        disabled={isDeleting}
+                        className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isDeleting ? 'Menghapus...' : 'Delete'}
+                      </button>
+                    </div>
                   </article>
                 )
               })}
@@ -649,6 +695,14 @@ export const UserManagement = () => {
                         {formatDate(user.created_at)}
                       </td>
                       <td className="px-6 py-4 text-right text-sm">
+                        <button
+                          type="button"
+                          onClick={() => startEditUser(user)}
+                          disabled={isDeleting || saving}
+                          className="mr-2 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Edit
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteUser(user)}
