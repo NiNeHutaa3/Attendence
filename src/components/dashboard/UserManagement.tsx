@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getAuthErrorMessage } from '@/lib/auth-errors'
-import type { Geofence, User } from '@/types'
+import type { AttendanceDetail, Geofence, User } from '@/types'
 
 type UserRole = 'admin' | 'karyawan'
 
@@ -37,6 +37,42 @@ const formatDate = (value?: string) =>
       })
     : '-'
 
+const formatDateTime = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '-'
+
+const getCurrentMonthValue = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+const getMonthRange = (monthValue: string) => {
+  const [yearValue, monthIndexValue] = monthValue.split('-').map(Number)
+  const year = Number.isFinite(yearValue) ? yearValue : new Date().getFullYear()
+  const monthIndex = Number.isFinite(monthIndexValue) ? monthIndexValue - 1 : new Date().getMonth()
+  const start = new Date(year, monthIndex, 1)
+  const end = new Date(year, monthIndex + 1, 0)
+
+  const toDateInput = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+      date.getDate()
+    ).padStart(2, '0')}`
+
+  return {
+    startDate: toDateInput(start),
+    endDate: toDateInput(end),
+  }
+}
+
+const formatPercent = (value: number) => `${Math.round(value)}%`
+
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([])
   const [geofences, setGeofences] = useState<Geofence[]>([])
@@ -56,11 +92,24 @@ export const UserManagement = () => {
   const [success, setSuccess] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'karyawan'>('all')
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [detailMonth, setDetailMonth] = useState(getCurrentMonthValue)
+  const [detailRecords, setDetailRecords] = useState<AttendanceDetail[]>([])
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchUsers()
     fetchGeofences()
   }, [])
+
+  useEffect(() => {
+    if (!selectedUser) {
+      return
+    }
+
+    fetchUserAttendanceDetail(selectedUser, detailMonth)
+  }, [detailMonth, selectedUser])
 
   const fetchUsers = async () => {
     try {
@@ -139,6 +188,56 @@ export const UserManagement = () => {
     setShowForm(true)
     setError(null)
     setSuccess(null)
+  }
+
+  const fetchUserAttendanceDetail = async (targetUser: User, monthValue = detailMonth) => {
+    if (targetUser.role !== 'karyawan') {
+      setDetailRecords([])
+      return
+    }
+
+    try {
+      setDetailLoading(true)
+      setDetailError(null)
+
+      const token = await getSessionToken()
+      const { startDate, endDate } = getMonthRange(monthValue)
+      const params = new URLSearchParams({
+        startDate,
+        endDate,
+        userId: targetUser.user_id,
+        status: 'all',
+      })
+
+      const response = await fetch(`/api/admin/attendance?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const contentType = response.headers.get('content-type') || ''
+      const result = contentType.includes('application/json')
+        ? await response.json()
+        : { error: await response.text() }
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Gagal memuat detail absensi karyawan')
+      }
+
+      setDetailRecords(result.records || [])
+    } catch (error: any) {
+      setDetailRecords([])
+      setDetailError(error.message || 'Gagal memuat detail absensi karyawan')
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const openUserDetail = (targetUser: User) => {
+    setSelectedUser(targetUser)
+    setDetailMonth(getCurrentMonthValue())
+    setDetailRecords([])
+    setDetailError(null)
   }
 
   const handleSubmitUser = async (e: React.FormEvent) => {
@@ -254,6 +353,22 @@ export const UserManagement = () => {
   const adminCount = users.filter((user) => user.role === 'admin').length
   const employeeCount = users.filter((user) => user.role === 'karyawan').length
   const assignedGeofenceCount = users.filter((user) => Boolean(user.geofence)).length
+  const detailStats = useMemo(() => {
+    const total = detailRecords.length
+    const valid = detailRecords.filter((record) => record.status === 'valid').length
+    const invalid = detailRecords.filter((record) => record.status === 'invalid').length
+
+    return {
+      total,
+      valid,
+      invalid,
+      validPercent: total > 0 ? (valid / total) * 100 : 0,
+      invalidPercent: total > 0 ? (invalid / total) * 100 : 0,
+    }
+  }, [detailRecords])
+  const selectedDisplayName = selectedUser
+    ? selectedUser.name || selectedUser.email.split('@')[0]
+    : ''
 
   return (
     <div className="space-y-6">
@@ -319,6 +434,218 @@ export const UserManagement = () => {
       {error && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
           {error}
+        </div>
+      )}
+
+      {selectedUser && (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="grid gap-4 border-b border-slate-100 bg-slate-50 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-teal-50 text-lg font-bold text-teal-800 ring-1 ring-teal-100">
+                {getInitials(selectedDisplayName, selectedUser.email)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700">
+                  Detail Karyawan
+                </p>
+                <h3 className="mt-1 truncate text-xl font-bold text-slate-950">
+                  {selectedDisplayName}
+                </h3>
+                <p className="mt-1 break-all text-sm text-slate-500">{selectedUser.email}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedUser(null)
+                setDetailRecords([])
+                setDetailError(null)
+              }}
+              className="btn-secondary h-10 w-full sm:w-auto"
+            >
+              Tutup Detail
+            </button>
+          </div>
+
+          <div className="grid gap-0 lg:grid-cols-[18rem_1fr]">
+            <aside className="space-y-4 border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+                  Data Pribadi
+                </p>
+                <dl className="mt-3 space-y-3 text-sm">
+                  <div>
+                    <dt className="font-semibold text-slate-500">Nama</dt>
+                    <dd className="mt-1 font-bold text-slate-950">{selectedDisplayName}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-500">Email</dt>
+                    <dd className="mt-1 break-all font-semibold text-slate-800">
+                      {selectedUser.email}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-500">Role</dt>
+                    <dd className="mt-1">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${
+                          selectedUser.role === 'admin'
+                            ? 'bg-blue-50 text-blue-700 ring-blue-100'
+                            : 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                        }`}
+                      >
+                        {selectedUser.role === 'admin' ? 'Admin' : 'Karyawan'}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-500">Bergabung</dt>
+                    <dd className="mt-1 font-semibold text-slate-800">
+                      {formatDate(selectedUser.created_at)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-500">Geofence</dt>
+                    <dd className="mt-1 font-semibold text-slate-800">
+                      {selectedUser.geofence ? selectedUser.geofence.location_name : '-'}
+                    </dd>
+                    {selectedUser.geofence && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Radius {Number(selectedUser.geofence.radius)}m
+                      </p>
+                    )}
+                  </div>
+                </dl>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="detailMonth"
+                  className="mb-2 block text-sm font-semibold text-slate-700"
+                >
+                  Bulan laporan
+                </label>
+                <input
+                  id="detailMonth"
+                  type="month"
+                  value={detailMonth}
+                  onChange={(e) => setDetailMonth(e.target.value || getCurrentMonthValue())}
+                  className="input-base"
+                  disabled={selectedUser.role !== 'karyawan'}
+                />
+              </div>
+            </aside>
+
+            <div className="space-y-5 p-5">
+              {selectedUser.role !== 'karyawan' ? (
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm font-semibold text-blue-800">
+                  Akun admin tidak memiliki ringkasan absensi karyawan.
+                </div>
+              ) : detailError ? (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">
+                  {detailError}
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Total Absensi
+                      </p>
+                      <p className="mt-2 text-3xl font-bold text-slate-950">
+                        {detailLoading ? '-' : detailStats.total}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-700">
+                        Valid
+                      </p>
+                      <p className="mt-2 text-3xl font-bold text-emerald-950">
+                        {detailLoading ? '-' : detailStats.valid}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-emerald-700">
+                        {formatPercent(detailStats.validPercent)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-rose-700">
+                        Tidak Valid
+                      </p>
+                      <p className="mt-2 text-3xl font-bold text-rose-950">
+                        {detailLoading ? '-' : detailStats.invalid}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-rose-700">
+                        {formatPercent(detailStats.invalidPercent)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-bold text-slate-950">Persentase Bulanan</p>
+                      <p className="text-sm font-semibold text-slate-500">
+                        {detailLoading
+                          ? 'Memuat...'
+                          : `${detailStats.valid} valid / ${detailStats.total} total`}
+                      </p>
+                    </div>
+                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full bg-emerald-500 transition-all"
+                        style={{ width: `${detailStats.validPercent}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 flex justify-between text-xs font-semibold text-slate-500">
+                      <span>Valid {formatPercent(detailStats.validPercent)}</span>
+                      <span>Tidak valid {formatPercent(detailStats.invalidPercent)}</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200">
+                    <div className="border-b border-slate-100 px-4 py-3">
+                      <p className="text-sm font-bold text-slate-950">Riwayat Absensi Bulan Ini</p>
+                    </div>
+                    {detailLoading ? (
+                      <div className="px-4 py-8 text-center">
+                        <div className="spinner mx-auto h-8 w-8" />
+                      </div>
+                    ) : detailRecords.length === 0 ? (
+                      <p className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                        Belum ada data absensi pada bulan ini.
+                      </p>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {detailRecords.slice(0, 8).map((record) => (
+                          <div
+                            key={record.attendance_id}
+                            className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center"
+                          >
+                            <div>
+                              <p className="font-bold text-slate-950">
+                                {formatDateTime(record.check_in_time)}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                Check-out: {formatDateTime(record.check_out_time)}
+                              </p>
+                            </div>
+                            <span
+                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${
+                                record.status === 'valid'
+                                  ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                                  : 'bg-rose-50 text-rose-700 ring-rose-100'
+                              }`}
+                            >
+                              {record.status === 'valid' ? 'Valid' : 'Tidak valid'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -574,7 +901,14 @@ export const UserManagement = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openUserDetail(user)}
+                        className="rounded-lg border border-teal-200 px-3 py-2 text-sm font-bold text-teal-700 transition-colors hover:bg-teal-50"
+                      >
+                        Detail
+                      </button>
                       <button
                         type="button"
                         onClick={() => startEditUser(user)}
@@ -695,6 +1029,13 @@ export const UserManagement = () => {
                         {formatDate(user.created_at)}
                       </td>
                       <td className="px-6 py-4 text-right text-sm">
+                        <button
+                          type="button"
+                          onClick={() => openUserDetail(user)}
+                          className="mr-2 rounded-lg px-3 py-2 text-xs font-bold text-teal-700 transition-colors hover:bg-teal-50"
+                        >
+                          Detail
+                        </button>
                         <button
                           type="button"
                           onClick={() => startEditUser(user)}
