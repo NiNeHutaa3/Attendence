@@ -8,8 +8,9 @@ const DEFAULT_GEOFENCE_RADIUS = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_
 const DEFAULT_GEOFENCE_LAT = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_LAT, -6.2088)
 const DEFAULT_GEOFENCE_LNG = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_LNG, 106.8456)
 const GPS_QUALITY_TARGET_METERS = 10
-const REQUIRED_LOCATION_SAMPLES = 5
-const LOCATION_SAMPLE_INTERVAL_MS = 1000
+const MIN_RELIABLE_LOCATION_SAMPLES = 2
+const TARGET_LOCATION_SAMPLES = 3
+const MAX_LOCATION_CAPTURE_MS = 5000
 const MAX_ACCEPTABLE_ACCURACY_METERS = parseEnvNumber(
   process.env.NEXT_PUBLIC_MAX_GPS_ACCURACY,
   75
@@ -37,25 +38,7 @@ export type VerifiedLocationResult = {
   samples: LocationSample[]
 }
 
-const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
-
-const getCurrentPosition = (): Promise<GeolocationPosition> => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported'))
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 12000,
-      maximumAge: 0,
-    })
-  })
-}
-
-const getLocationSample = async (): Promise<LocationSample> => {
-  const position = await getCurrentPosition()
+const toLocationSample = (position: GeolocationPosition): LocationSample => {
   const { latitude, longitude, accuracy } = position.coords
 
   if (
@@ -72,6 +55,75 @@ const getLocationSample = async (): Promise<LocationSample> => {
     accuracy,
     timestamp: position.timestamp || Date.now(),
   }
+}
+
+const captureLocationSamples = (): Promise<LocationSample[]> => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported'))
+      return
+    }
+
+    const samples: LocationSample[] = []
+    let watchId: number | null = null
+    let settled = false
+
+    const finish = () => {
+      if (settled) return
+      settled = true
+
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId)
+      }
+
+      if (samples.length === 0) {
+        reject(new Error('Lokasi belum terbaca. Pastikan izin lokasi aktif lalu coba lagi.'))
+        return
+      }
+
+      resolve(samples)
+    }
+
+    const timeoutId = window.setTimeout(finish, MAX_LOCATION_CAPTURE_MS)
+
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        try {
+          const sample = toLocationSample(position)
+          samples.push(sample)
+
+          const reliableSamples = samples.filter(
+            (item) => item.accuracy <= MAX_ACCEPTABLE_ACCURACY_METERS
+          )
+          const hasEnoughSamples = samples.length >= TARGET_LOCATION_SAMPLES
+          const hasEnoughReliableSamples = reliableSamples.length >= MIN_RELIABLE_LOCATION_SAMPLES
+          const hasIdealSample = reliableSamples.some(
+            (item) => item.accuracy <= GPS_QUALITY_TARGET_METERS
+          )
+
+          if (hasEnoughSamples && (hasEnoughReliableSamples || hasIdealSample)) {
+            window.clearTimeout(timeoutId)
+            finish()
+          }
+        } catch (error) {
+          window.clearTimeout(timeoutId)
+          finish()
+        }
+      },
+      (error) => {
+        window.clearTimeout(timeoutId)
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId)
+        }
+        reject(new Error(error.message || 'Gagal membaca lokasi perangkat'))
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: MAX_LOCATION_CAPTURE_MS,
+        maximumAge: 0,
+      }
+    )
+  })
 }
 
 const getWeightedLocation = (samples: LocationSample[]): LocationSample => {
@@ -127,15 +179,7 @@ export const verifyGeofenceLocation = async (
   centerLng: number = DEFAULT_GEOFENCE_LNG,
   radius: number = DEFAULT_GEOFENCE_RADIUS
 ): Promise<VerifiedLocationResult> => {
-  const samples: LocationSample[] = []
-
-  for (let index = 0; index < REQUIRED_LOCATION_SAMPLES; index += 1) {
-    samples.push(await getLocationSample())
-
-    if (index < REQUIRED_LOCATION_SAMPLES - 1) {
-      await wait(LOCATION_SAMPLE_INTERVAL_MS)
-    }
-  }
+  const samples = await captureLocationSamples()
 
   const reliableSamples = samples.filter(
     (sample) => sample.accuracy <= MAX_ACCEPTABLE_ACCURACY_METERS
@@ -188,8 +232,7 @@ export const verifyGeofenceLocation = async (
   const isWithinGeofence = dist <= radius + edgeTolerance
 
   const hasAccuracyIssue = bestSample.accuracy > MAX_ACCEPTABLE_ACCURACY_METERS
-  const minimumReliableSamples = Math.ceil(REQUIRED_LOCATION_SAMPLES / 2)
-  const hasTooFewReliableSamples = reliableSamples.length < minimumReliableSamples
+  const hasTooFewReliableSamples = reliableSamples.length < MIN_RELIABLE_LOCATION_SAMPLES
 
   const geofenceIssues = isWithinGeofence
     ? []
@@ -209,7 +252,7 @@ export const verifyGeofenceLocation = async (
 
   const sampleIssues = hasTooFewReliableSamples
     ? [
-        `GPS belum stabil. Minimal ${minimumReliableSamples} dari ${REQUIRED_LOCATION_SAMPLES} sampel harus memiliki akurasi maksimal ${MAX_ACCEPTABLE_ACCURACY_METERS} m.`,
+        `GPS belum stabil. Minimal ${MIN_RELIABLE_LOCATION_SAMPLES} sampel harus memiliki akurasi maksimal ${MAX_ACCEPTABLE_ACCURACY_METERS} m.`,
       ]
     : []
 
