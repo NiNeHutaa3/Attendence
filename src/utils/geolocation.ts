@@ -16,6 +16,7 @@ const MAX_ACCEPTABLE_ACCURACY_METERS = parseEnvNumber(
   75
 )
 const GEOFENCE_EDGE_TOLERANCE_METERS = 10
+const INNER_GEOFENCE_MARGIN_METERS = 10
 const MAX_SAMPLE_SPREAD_METERS = 25
 const MAX_REASONABLE_SPEED_MPS = 12
 
@@ -57,6 +58,26 @@ const toLocationSample = (position: GeolocationPosition): LocationSample => {
   }
 }
 
+const getCurrentLocationSample = (): Promise<LocationSample> => {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        try {
+          resolve(toLocationSample(position))
+        } catch (error) {
+          reject(error)
+        }
+      },
+      reject,
+      {
+        enableHighAccuracy: true,
+        timeout: MAX_LOCATION_CAPTURE_MS,
+        maximumAge: 15000,
+      }
+    )
+  })
+}
+
 const captureLocationSamples = (): Promise<LocationSample[]> => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -67,55 +88,100 @@ const captureLocationSamples = (): Promise<LocationSample[]> => {
     const samples: LocationSample[] = []
     let watchId: number | null = null
     let settled = false
+    let lastError: GeolocationPositionError | null = null
+    let timeoutId: number | null = null
+
+    const addSample = (sample: LocationSample) => {
+      const isDuplicate = samples.some(
+        (item) =>
+          item.timestamp === sample.timestamp &&
+          item.lat === sample.lat &&
+          item.lng === sample.lng
+      )
+
+      if (!isDuplicate) {
+        samples.push(sample)
+      }
+
+      const reliableSamples = samples.filter(
+        (item) => item.accuracy <= MAX_ACCEPTABLE_ACCURACY_METERS
+      )
+      const hasEnoughSamples = samples.length >= TARGET_LOCATION_SAMPLES
+      const hasEnoughReliableSamples = reliableSamples.length >= MIN_RELIABLE_LOCATION_SAMPLES
+      const hasIdealSample = reliableSamples.some(
+        (item) => item.accuracy <= GPS_QUALITY_TARGET_METERS
+      )
+
+      if (hasEnoughSamples && (hasEnoughReliableSamples || hasIdealSample)) {
+        finish()
+      }
+    }
 
     const finish = () => {
       if (settled) return
       settled = true
+
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
 
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId)
       }
 
       if (samples.length === 0) {
-        reject(new Error('Lokasi belum terbaca. Pastikan izin lokasi aktif lalu coba lagi.'))
+        reject(
+          new Error(
+            lastError?.message ||
+              'Lokasi belum terbaca. Pastikan izin lokasi aktif lalu coba lagi.'
+          )
+        )
         return
       }
 
       resolve(samples)
     }
 
-    const timeoutId = window.setTimeout(finish, MAX_LOCATION_CAPTURE_MS)
+    timeoutId = window.setTimeout(finish, MAX_LOCATION_CAPTURE_MS)
+
+    getCurrentLocationSample()
+      .then((sample) => {
+        addSample(sample)
+      })
+      .catch((error: GeolocationPositionError) => {
+        lastError = error
+
+        if (error.code === error.PERMISSION_DENIED && samples.length === 0) {
+          if (timeoutId !== null) {
+            window.clearTimeout(timeoutId)
+          }
+          reject(new Error(error.message || 'Izin lokasi belum diberikan'))
+        }
+      })
 
     watchId = navigator.geolocation.watchPosition(
       (position) => {
         try {
-          const sample = toLocationSample(position)
-          samples.push(sample)
-
-          const reliableSamples = samples.filter(
-            (item) => item.accuracy <= MAX_ACCEPTABLE_ACCURACY_METERS
-          )
-          const hasEnoughSamples = samples.length >= TARGET_LOCATION_SAMPLES
-          const hasEnoughReliableSamples = reliableSamples.length >= MIN_RELIABLE_LOCATION_SAMPLES
-          const hasIdealSample = reliableSamples.some(
-            (item) => item.accuracy <= GPS_QUALITY_TARGET_METERS
-          )
-
-          if (hasEnoughSamples && (hasEnoughReliableSamples || hasIdealSample)) {
-            window.clearTimeout(timeoutId)
-            finish()
-          }
+          addSample(toLocationSample(position))
         } catch (error) {
-          window.clearTimeout(timeoutId)
+          if (timeoutId !== null) {
+            window.clearTimeout(timeoutId)
+          }
           finish()
         }
       },
       (error) => {
-        window.clearTimeout(timeoutId)
-        if (watchId !== null) {
-          navigator.geolocation.clearWatch(watchId)
+        lastError = error
+
+        if (error.code === error.PERMISSION_DENIED && samples.length === 0) {
+          if (timeoutId !== null) {
+            window.clearTimeout(timeoutId)
+          }
+          if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId)
+          }
+          reject(new Error(error.message || 'Izin lokasi belum diberikan'))
         }
-        reject(new Error(error.message || 'Gagal membaca lokasi perangkat'))
       },
       {
         enableHighAccuracy: true,
@@ -230,9 +296,17 @@ export const verifyGeofenceLocation = async (
 
   const edgeTolerance = GEOFENCE_EDGE_TOLERANCE_METERS
   const isWithinGeofence = dist <= radius + edgeTolerance
+  const isSafelyInsideGeofence = dist <= Math.max(0, radius - INNER_GEOFENCE_MARGIN_METERS)
 
   const hasAccuracyIssue = bestSample.accuracy > MAX_ACCEPTABLE_ACCURACY_METERS
-  const hasTooFewReliableSamples = reliableSamples.length < MIN_RELIABLE_LOCATION_SAMPLES
+  const hasAnyReliableSample = reliableSamples.length > 0
+  const hasEnoughReliableSamples = reliableSamples.length >= MIN_RELIABLE_LOCATION_SAMPLES
+  const canUseSingleReliableSample = hasAnyReliableSample && isSafelyInsideGeofence
+  const hasTooFewReliableSamples = !hasEnoughReliableSamples && !canUseSingleReliableSample
+
+  if (canUseSingleReliableSample && !hasEnoughReliableSamples) {
+    qualityWarnings.push('Sampel GPS terbatas, tetapi posisi berada cukup aman di dalam radius kantor.')
+  }
 
   const geofenceIssues = isWithinGeofence
     ? []
@@ -252,7 +326,7 @@ export const verifyGeofenceLocation = async (
 
   const sampleIssues = hasTooFewReliableSamples
     ? [
-        `GPS belum stabil. Minimal ${MIN_RELIABLE_LOCATION_SAMPLES} sampel harus memiliki akurasi maksimal ${MAX_ACCEPTABLE_ACCURACY_METERS} m.`,
+        `GPS belum stabil. Minimal ${MIN_RELIABLE_LOCATION_SAMPLES} sampel akurat dibutuhkan saat posisi dekat batas radius kantor.`,
       ]
     : []
 
