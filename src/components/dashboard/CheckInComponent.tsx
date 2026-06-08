@@ -171,11 +171,20 @@ export const CheckInComponent = () => {
         return
       }
 
+      const geofenceLat = Number(geofence.latitude_center)
+      const geofenceLng = Number(geofence.longitude_center)
+      const geofenceRadius = Number(geofence.radius)
+
+      if (!Number.isFinite(geofenceLat) || !Number.isFinite(geofenceLng)) {
+        setActiveGeofence(DEFAULT_GEOFENCE)
+        return
+      }
+
       setActiveGeofence({
         locationName: geofence.location_name,
-        lat: Number(geofence.latitude_center),
-        lng: Number(geofence.longitude_center),
-        radius: Number(geofence.radius),
+        lat: geofenceLat,
+        lng: geofenceLng,
+        radius: Number.isFinite(geofenceRadius) && geofenceRadius > 0 ? geofenceRadius : GEOFENCE_RADIUS,
       })
     }
 
@@ -196,7 +205,21 @@ export const CheckInComponent = () => {
     }
   }, [photoBlob])
 
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        stopMediaStream(streamRef.current)
+        streamRef.current = null
+      }
+    }
+  }, [])
+
   const startCameraCapture = async () => {
+    if (!userLocation || isValid !== true) {
+      setError('Lokasi harus valid dan akurat sebelum membuka kamera.')
+      return
+    }
+
     try {
       setError(null)
       setCameraActive(true)
@@ -252,6 +275,14 @@ export const CheckInComponent = () => {
   ) => {
     if (!userLocation || !photoBlob || isValid === null || distance === null) {
       throw new Error('Data lokasi atau foto belum lengkap')
+    }
+
+    if (isValid !== true) {
+      throw new Error('Lokasi belum valid untuk absensi')
+    }
+
+    if (photoBlob.size <= 0) {
+      throw new Error('Foto belum tersedia untuk absensi')
     }
 
     const photoUrl = await uploadPhoto(photoBlob, `${attendanceId}-${eventType}`, supabase)
@@ -314,8 +345,23 @@ export const CheckInComponent = () => {
   }
 
   const handleSubmitAttendance = async () => {
-    if (!user || !userLocation || !photoBlob || isValid === null || distance === null) {
-      setError('Missing required data')
+    if (!user) {
+      setError('Sesi login tidak ditemukan. Silakan login ulang.')
+      return
+    }
+
+    if (!userLocation || distance === null || locationVerification === null) {
+      setError('Lokasi belum tersedia. Ambil lokasi terlebih dahulu sebelum mengirim absensi.')
+      return
+    }
+
+    if (isValid !== true) {
+      setError('Lokasi belum valid. Pastikan GPS akurat dan posisi berada di area kantor.')
+      return
+    }
+
+    if (!photoBlob || photoBlob.size <= 0) {
+      setError('Foto belum tersedia. Ambil foto terlebih dahulu sebelum mengirim absensi.')
       return
     }
 
@@ -447,7 +493,14 @@ export const CheckInComponent = () => {
     : 'Kualitas GPS perlu diperiksa'
   const invalidLocationMessage = isOutsideGeofence
     ? `Posisi kamu berada di luar radius ${activeGeofence.radius} m dari ${activeGeofence.locationName}. Silakan mendekat ke area kantor dan ambil ulang lokasi.`
-    : 'Lokasi belum bisa divalidasi karena akurasi GPS terlalu rendah. Pastikan GPS aktif, izinkan akurasi tinggi, tunggu beberapa detik, lalu coba lagi.'
+    : 'Lokasi belum bisa divalidasi karena sinyal GPS belum stabil. Pastikan GPS aktif, izinkan akurasi tinggi, tunggu beberapa detik, lalu coba lagi.'
+  const canSubmitAttendance =
+    Boolean(user) &&
+    Boolean(userLocation) &&
+    Boolean(locationVerification) &&
+    Boolean(photoBlob && photoBlob.size > 0) &&
+    isValid === true &&
+    distance !== null
 
   return (
     <section className="space-y-4 lg:space-y-5">
@@ -565,10 +618,34 @@ export const CheckInComponent = () => {
               <p className="text-sm leading-6 text-slate-500">
                 Jika foto sudah jelas, kirim {actionLabel}. Jika belum, ambil ulang foto.
               </p>
+              <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-slate-600">GPS valid</span>
+                  <span className={isValid ? 'font-bold text-emerald-700' : 'font-bold text-rose-700'}>
+                    {isValid ? 'Siap' : 'Belum'}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="font-semibold text-slate-600">Akurasi</span>
+                  <span className="font-bold text-slate-950">
+                    {locationVerification ? `${locationVerification.accuracy.toFixed(1)} m` : '--'}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="font-semibold text-slate-600">Toleransi radius</span>
+                  <span className="font-bold text-slate-950">+/-10 m</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="font-semibold text-slate-600">Foto</span>
+                  <span className={photoBlob?.size ? 'font-bold text-emerald-700' : 'font-bold text-rose-700'}>
+                    {photoBlob?.size ? 'Tersedia' : 'Belum'}
+                  </span>
+                </div>
+              </div>
               <button
                 onClick={handleSubmitAttendance}
                 className="btn-primary w-full"
-                disabled={isBusy}
+                disabled={isBusy || !canSubmitAttendance}
               >
                 {state === 'uploading'
                   ? 'Mengirim...'
@@ -882,10 +959,10 @@ export const CheckInComponent = () => {
                 {!userLocation
                   ? 'Ambil lokasi untuk mulai.'
                   : isValid
-                    ? 'Lokasi lolos validasi radius dan akurasi.'
+                    ? 'Lokasi lolos validasi radius kantor dan toleransi GPS.'
                     : isOutsideGeofence
                       ? `Kamu berada di luar radius ${activeGeofence.radius} m dari area kantor.`
-                      : 'Lokasi belum valid karena akurasi GPS terlalu rendah.'}
+                      : 'Lokasi belum valid karena sinyal GPS belum stabil.'}
               </p>
             </div>
 

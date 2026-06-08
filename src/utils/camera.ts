@@ -13,6 +13,14 @@ export const startCamera = async (): Promise<MediaStream> => {
 }
 
 export const capturePhoto = async (videoElement: HTMLVideoElement): Promise<Blob> => {
+  if (videoElement.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+    throw new Error('Kamera belum siap. Tunggu sebentar lalu ambil foto lagi.')
+  }
+
+  if (videoElement.videoWidth <= 0 || videoElement.videoHeight <= 0) {
+    throw new Error('Foto belum tersedia dari kamera. Pastikan kamera aktif lalu coba lagi.')
+  }
+
   const canvas = document.createElement('canvas')
   canvas.width = videoElement.videoWidth
   canvas.height = videoElement.videoHeight
@@ -27,10 +35,10 @@ export const capturePhoto = async (videoElement: HTMLVideoElement): Promise<Blob
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
-        if (blob) {
+        if (blob && blob.size > 0) {
           resolve(blob)
         } else {
-          reject(new Error('Failed to capture photo'))
+          reject(new Error('Foto belum tersedia. Ambil ulang foto sebelum mengirim absensi.'))
         }
       },
       'image/jpeg',

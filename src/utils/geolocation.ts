@@ -7,11 +7,15 @@ const parseEnvNumber = (value: string | undefined, fallback: number) => {
 const DEFAULT_GEOFENCE_RADIUS = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_RADIUS, 100)
 const DEFAULT_GEOFENCE_LAT = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_LAT, -6.2088)
 const DEFAULT_GEOFENCE_LNG = parseEnvNumber(process.env.NEXT_PUBLIC_GEOFENCE_LNG, 106.8456)
-const REQUIRED_LOCATION_SAMPLES = 3
-const LOCATION_SAMPLE_INTERVAL_MS = 1200
-const MAX_ACCEPTABLE_ACCURACY_METERS = 75
-const MAX_GEOFENCE_EDGE_TOLERANCE_METERS = 25
-const MAX_SAMPLE_SPREAD_METERS = 40
+const GPS_QUALITY_TARGET_METERS = 10
+const REQUIRED_LOCATION_SAMPLES = 5
+const LOCATION_SAMPLE_INTERVAL_MS = 1000
+const MAX_ACCEPTABLE_ACCURACY_METERS = parseEnvNumber(
+  process.env.NEXT_PUBLIC_MAX_GPS_ACCURACY,
+  75
+)
+const GEOFENCE_EDGE_TOLERANCE_METERS = 10
+const MAX_SAMPLE_SPREAD_METERS = 25
 const MAX_REASONABLE_SPEED_MPS = 12
 
 type LocationSample = {
@@ -70,6 +74,33 @@ const getLocationSample = async (): Promise<LocationSample> => {
   }
 }
 
+const getWeightedLocation = (samples: LocationSample[]): LocationSample => {
+  const weights = samples.map((sample) => 1 / Math.max(sample.accuracy, 1))
+  const totalWeight = weights.reduce((total, weight) => total + weight, 0)
+
+  if (totalWeight <= 0) {
+    return [...samples].sort((a, b) => a.accuracy - b.accuracy)[0]
+  }
+
+  const weightedLat = samples.reduce(
+    (total, sample, index) => total + sample.lat * weights[index],
+    0
+  )
+  const weightedLng = samples.reduce(
+    (total, sample, index) => total + sample.lng * weights[index],
+    0
+  )
+  const bestAccuracy = Math.min(...samples.map((sample) => sample.accuracy))
+  const latestTimestamp = Math.max(...samples.map((sample) => sample.timestamp))
+
+  return {
+    lat: weightedLat / totalWeight,
+    lng: weightedLng / totalWeight,
+    accuracy: bestAccuracy,
+    timestamp: latestTimestamp,
+  }
+}
+
 export const calculateDistance = (
   userLat: number,
   userLng: number,
@@ -106,14 +137,20 @@ export const verifyGeofenceLocation = async (
     }
   }
 
-  const bestSample = [...samples].sort((a, b) => a.accuracy - b.accuracy)[0]
+  const reliableSamples = samples.filter(
+    (sample) => sample.accuracy <= MAX_ACCEPTABLE_ACCURACY_METERS
+  )
+  const fallbackSample = [...samples].sort((a, b) => a.accuracy - b.accuracy)[0]
+  const bestSample = getWeightedLocation(reliableSamples.length > 0 ? reliableSamples : [fallbackSample])
   const qualityWarnings: string[] = []
   let maxSpread = 0
   let maxSpeed = 0
 
   samples.forEach((sample, index) => {
     if (sample.accuracy > MAX_ACCEPTABLE_ACCURACY_METERS) {
-      qualityWarnings.push(`Akurasi GPS rendah pada salah satu sampel (${Math.round(sample.accuracy)} m).`)
+      qualityWarnings.push(`Akurasi GPS salah satu sampel melebihi batas aman ${MAX_ACCEPTABLE_ACCURACY_METERS} m (${Math.round(sample.accuracy)} m).`)
+    } else if (sample.accuracy > GPS_QUALITY_TARGET_METERS) {
+      qualityWarnings.push(`Akurasi GPS belum ideal (${Math.round(sample.accuracy)} m), tetapi masih dalam batas aman.`)
     }
 
     if (index === 0) {
@@ -147,35 +184,41 @@ export const verifyGeofenceLocation = async (
 
   const dist = calculateDistance(bestSample.lat, bestSample.lng, centerLat, centerLng)
 
-  const edgeTolerance = Math.min(MAX_GEOFENCE_EDGE_TOLERANCE_METERS, Math.max(10, radius * 0.2))
+  const edgeTolerance = GEOFENCE_EDGE_TOLERANCE_METERS
   const isWithinGeofence = dist <= radius + edgeTolerance
 
   const hasAccuracyIssue = bestSample.accuracy > MAX_ACCEPTABLE_ACCURACY_METERS
+  const minimumReliableSamples = Math.ceil(REQUIRED_LOCATION_SAMPLES / 2)
+  const hasTooFewReliableSamples = reliableSamples.length < minimumReliableSamples
 
   const geofenceIssues = isWithinGeofence
     ? []
     : [
         `Lokasi berada di luar area absensi. Jarak ${dist.toFixed(
           1
-        )} m dari pusat, batas valid sekitar ${Math.round(radius + edgeTolerance)} m.`,
+        )} m dari pusat, batas valid ${Math.round(radius)} m dengan toleransi +/-${edgeTolerance} m.`,
       ]
 
   const accuracyIssues = hasAccuracyIssue
     ? [
         `Akurasi GPS terlalu rendah (${Math.round(
           bestSample.accuracy
-        )} m). Coba aktifkan mode akurasi tinggi dan ambil ulang lokasi.`,
+        )} m). Batas aman maksimal untuk absensi adalah ${MAX_ACCEPTABLE_ACCURACY_METERS} m.`,
       ]
     : []
 
-  // Deduplicate issues supaya pesan yang sama (mis. “Akurasi GPS terlalu rendah ...”)
-  // tidak muncul berulang saat kualitas/fokus validasi menghasilkan string identik.
-  const issues = [...accuracyIssues, ...geofenceIssues, ...qualityWarnings]
+  const sampleIssues = hasTooFewReliableSamples
+    ? [
+        `GPS belum stabil. Minimal ${minimumReliableSamples} dari ${REQUIRED_LOCATION_SAMPLES} sampel harus memiliki akurasi maksimal ${MAX_ACCEPTABLE_ACCURACY_METERS} m.`,
+      ]
+    : []
+
+  const issues = [...accuracyIssues, ...sampleIssues, ...geofenceIssues, ...qualityWarnings]
     .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
 
   const uniqueIssues = Array.from(new Set(issues))
 
-  const isReliable = !hasAccuracyIssue
+  const isReliable = !hasAccuracyIssue && !hasTooFewReliableSamples
   const isValid = isReliable && isWithinGeofence
 
 
