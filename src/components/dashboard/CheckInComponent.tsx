@@ -919,7 +919,7 @@ export const CheckInComponent = () => {
             </div>
 
             {userLocation && (
-              <div className="hidden border-t border-slate-100 p-5 sm:p-6 lg:block">
+              <div className="border-t border-slate-100 p-4 sm:p-6">
                 <MapComponent
                   userLat={userLocation.lat}
                   userLng={userLocation.lng}

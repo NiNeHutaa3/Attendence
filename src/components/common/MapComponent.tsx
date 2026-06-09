@@ -48,7 +48,7 @@ export default function MapComponent({
       maxZoom: 19,
     }).addTo(map)
 
-    L.circle([centerLat, centerLng], {
+    const geofenceCircle = L.circle([centerLat, centerLng], {
       color: '#2563eb',
       fillColor: '#10b981',
       fillOpacity: 0.12,
@@ -74,6 +74,20 @@ export default function MapComponent({
       .bindPopup('Your Location')
       .addTo(map)
 
+    const userPoint = L.latLng(userLat, userLng)
+    const geofenceBounds = geofenceCircle.getBounds()
+    const bounds = geofenceBounds.extend(userPoint)
+
+    map.fitBounds(bounds, {
+      animate: false,
+      maxZoom: 18,
+      padding: [28, 28],
+    })
+
+    setTimeout(() => {
+      map.invalidateSize()
+    }, 0)
+
     mapInstanceRef.current = map
 
     return () => {
@@ -95,7 +109,7 @@ export default function MapComponent({
   return (
     <div
       ref={mapRef}
-      className="h-64 w-full overflow-hidden rounded-lg border border-slate-200"
+      className="h-72 w-full overflow-hidden rounded-lg border border-slate-200 sm:h-80 lg:h-64"
     />
   )
 }
