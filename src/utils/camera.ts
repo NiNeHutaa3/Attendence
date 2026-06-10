@@ -104,7 +104,7 @@ export const uploadPhoto = async (
   return publicUrl
 }
 
-export const getIPAddress = async (): Promise<string> => {
+export const getIPAddress = async (): Promise<string | null> => {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 3000)
 
@@ -114,14 +114,14 @@ export const getIPAddress = async (): Promise<string> => {
     })
 
     if (!response.ok) {
-      return 'unknown'
+      return null
     }
 
     const data = await response.json()
-    return data.ip
+    return typeof data.ip === 'string' && data.ip.trim().length > 0 ? data.ip : null
   } catch (error) {
     console.error('Error getting IP address:', error)
-    return 'unknown'
+    return null
   } finally {
     clearTimeout(timeoutId)
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getAttendanceEffectiveStatus } from '@/utils/attendance-validation'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -97,10 +98,6 @@ export async function GET(request: Request) {
     attendanceQuery = attendanceQuery.eq('user_id', userId)
   }
 
-  if (status === 'valid' || status === 'invalid') {
-    attendanceQuery = attendanceQuery.eq('status', status)
-  }
-
   const { data: attendanceRows, error: attendanceError } = await attendanceQuery.order(
     'created_at',
     { ascending: false }
@@ -172,13 +169,26 @@ export async function GET(request: Request) {
   const locationsByAttendance = groupByAttendance(locations || [])
   const accessLogsByAttendance = groupByAttendance(accessLogs || [])
 
-  return NextResponse.json({
-    records: attendance.map((record) => ({
+  const records = attendance.map((record) => {
+    const recordPhotos = photosByAttendance[record.attendance_id] || []
+    const recordLocations = locationsByAttendance[record.attendance_id] || []
+    const recordAccessLogs = accessLogsByAttendance[record.attendance_id] || []
+
+    return {
       ...record,
+      status: getAttendanceEffectiveStatus(record.status, {
+        photos: recordPhotos,
+        locations: recordLocations,
+        access_logs: recordAccessLogs,
+      }),
       user: usersById.get(record.user_id) || null,
-      photos: photosByAttendance[record.attendance_id] || [],
-      locations: locationsByAttendance[record.attendance_id] || [],
-      access_logs: accessLogsByAttendance[record.attendance_id] || [],
-    })),
+      photos: recordPhotos,
+      locations: recordLocations,
+      access_logs: recordAccessLogs,
+    }
+  })
+
+  return NextResponse.json({
+    records: records.filter((record) => status === 'all' || record.status === status),
   })
 }

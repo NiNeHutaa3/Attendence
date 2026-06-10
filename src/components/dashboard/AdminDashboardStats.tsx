@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getAttendanceEffectiveStatus } from '@/utils/attendance-validation'
 
 type DashboardStats = {
   totalUsers: number
@@ -37,14 +38,58 @@ export const AdminDashboardStats = () => {
 
         const { data: attendanceData } = await supabase
           .from('attendance')
-          .select('status')
+          .select('attendance_id,status')
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString())
 
+        const attendanceIds = (attendanceData || []).map((record: any) => record.attendance_id)
+        const [
+          { data: photos },
+          { data: locations },
+          { data: accessLogs },
+        ] = attendanceIds.length
+          ? await Promise.all([
+              supabase
+                .from('photo_attendance')
+                .select('attendance_id,event_type,photo_url,captured_at,created_at')
+                .in('attendance_id', attendanceIds),
+              supabase
+                .from('location_log')
+                .select('attendance_id,event_type,latitude,longitude,distance_from_center,is_within_geofence,created_at')
+                .in('attendance_id', attendanceIds),
+              supabase
+                .from('access_log')
+                .select('attendance_id,event_type,user_agent,ip_address,created_at')
+                .in('attendance_id', attendanceIds),
+            ])
+          : [
+              { data: [] },
+              { data: [] },
+              { data: [] },
+            ]
 
-        const validCount = attendanceData?.filter((a: any) => a.status === 'valid').length || 0
+        const groupByAttendance = (rows: any[] = []) =>
+          rows.reduce<Record<string, any[]>>((groups, row) => {
+            groups[row.attendance_id] = groups[row.attendance_id] || []
+            groups[row.attendance_id].push(row)
+            return groups
+          }, {})
+
+        const photosByAttendance = groupByAttendance(photos || [])
+        const locationsByAttendance = groupByAttendance(locations || [])
+        const accessLogsByAttendance = groupByAttendance(accessLogs || [])
+        const effectiveAttendance = (attendanceData || []).map((record: any) => ({
+          ...record,
+          status: getAttendanceEffectiveStatus(record.status, {
+            photos: photosByAttendance[record.attendance_id] || [],
+            locations: locationsByAttendance[record.attendance_id] || [],
+            access_logs: accessLogsByAttendance[record.attendance_id] || [],
+          }),
+        }))
+
+        const validCount = effectiveAttendance.filter((a: any) => a.status === 'valid').length || 0
         const invalidCount =
-          attendanceData?.filter((a: any) => a.status === 'invalid').length || 0
+          effectiveAttendance.filter((a: any) => a.status === 'invalid').length || 0
 
         setStats({
           totalUsers: userData?.length || 0,

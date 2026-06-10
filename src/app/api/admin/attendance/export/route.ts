@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
+import { getAttendanceEffectiveStatus } from '@/utils/attendance-validation'
 
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -89,16 +90,67 @@ export async function GET(request: Request) {
     query = query.eq('user_id', userId)
   }
 
-  if (statusParam === 'valid' || statusParam === 'invalid') {
-    query = query.eq('status', statusParam)
-  }
-
   const { data, error } = await query.order('created_at', { ascending: false })
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const rows = (data || []).map((record: any) => {
+  const attendance = data || []
+  const attendanceIds = attendance.map((record: any) => record.attendance_id)
+
+  const [
+    { data: photos, error: photosError },
+    { data: locations, error: locationsError },
+    { data: accessLogs, error: accessLogsError },
+  ] = attendanceIds.length
+    ? await Promise.all([
+        serviceSupabase
+          .from('photo_attendance')
+          .select('attendance_id,event_type,photo_url,captured_at,created_at')
+          .in('attendance_id', attendanceIds),
+        serviceSupabase
+          .from('location_log')
+          .select('attendance_id,event_type,latitude,longitude,distance_from_center,is_within_geofence,created_at')
+          .in('attendance_id', attendanceIds),
+        serviceSupabase
+          .from('access_log')
+          .select('attendance_id,event_type,user_agent,ip_address,created_at')
+          .in('attendance_id', attendanceIds),
+      ])
+    : [
+        { data: [], error: null },
+        { data: [], error: null },
+        { data: [], error: null },
+      ]
+
+  const evidenceError = photosError || locationsError || accessLogsError
+
+  if (evidenceError) {
+    return NextResponse.json({ error: evidenceError.message }, { status: 500 })
+  }
+
+  const groupByAttendance = (rows: any[] = []) =>
+    rows.reduce<Record<string, any[]>>((groups, row) => {
+      groups[row.attendance_id] = groups[row.attendance_id] || []
+      groups[row.attendance_id].push(row)
+      return groups
+    }, {})
+
+  const photosByAttendance = groupByAttendance(photos || [])
+  const locationsByAttendance = groupByAttendance(locations || [])
+  const accessLogsByAttendance = groupByAttendance(accessLogs || [])
+
+  const rows = attendance
+    .map((record: any) => ({
+      ...record,
+      status: getAttendanceEffectiveStatus(record.status, {
+        photos: photosByAttendance[record.attendance_id] || [],
+        locations: locationsByAttendance[record.attendance_id] || [],
+        access_logs: accessLogsByAttendance[record.attendance_id] || [],
+      }),
+    }))
+    .filter((record: any) => statusParam === 'all' || record.status === statusParam)
+    .map((record: any) => {
     const u = Array.isArray(record.user) ? record.user[0] : record.user
     return {
       Tanggal: new Date(record.created_at).toLocaleDateString('id-ID'),

@@ -13,6 +13,7 @@ import {
   getIPAddress,
   getUserAgent,
 } from '@/utils/camera'
+import { hasCompleteAttendanceEvidence } from '@/utils/attendance-validation'
 import type { Attendance } from '@/types'
 
 const MapComponent = dynamic(() => import('@/components/common/MapComponent'), {
@@ -288,6 +289,41 @@ export const CheckInComponent = () => {
     const photoUrl = await uploadPhoto(photoBlob, `${attendanceId}-${eventType}`, supabase)
     const ipAddress = await getIPAddress()
     const userAgent = getUserAgent()
+    const evidenceIsComplete = hasCompleteAttendanceEvidence(
+      {
+        photos: [
+          {
+            event_type: eventType,
+            photo_url: photoUrl,
+            captured_at: capturedAt,
+            created_at: capturedAt,
+          },
+        ],
+        locations: [
+          {
+            event_type: eventType,
+            latitude: userLocation.lat,
+            longitude: userLocation.lng,
+            distance_from_center: distance,
+            is_within_geofence: isValid,
+            created_at: capturedAt,
+          },
+        ],
+        accessLogs: [
+          {
+            event_type: eventType,
+            user_agent: userAgent,
+            ip_address: ipAddress,
+            created_at: capturedAt,
+          },
+        ],
+      },
+      eventType
+    )
+
+    if (!evidenceIsComplete) {
+      throw new Error('Metadata absensi tidak lengkap. Foto, lokasi, dan access log wajib tersedia.')
+    }
 
     const { error: photoError } = await supabase.from('photo_attendance').insert({
       attendance_id: attendanceId,
@@ -410,7 +446,7 @@ export const CheckInComponent = () => {
         .insert({
           user_id: user.id,
           check_in_time: now,
-          status: isValid ? 'valid' : 'invalid',
+          status: 'invalid',
           created_at: now,
         })
         .select('attendance_id, user_id, check_in_time, check_out_time, status, created_at')
@@ -428,8 +464,24 @@ export const CheckInComponent = () => {
       const attendanceId = attendanceData.attendance_id
       await saveAttendanceEvidence(attendanceId, now, 'checkin')
 
+      const { data: validatedAttendance, error: validationError } = await supabase
+        .from('attendance')
+        .update({
+          status: 'valid',
+          updated_at: now,
+        })
+        .eq('attendance_id', attendanceId)
+        .select('attendance_id, user_id, check_in_time, check_out_time, status, created_at, updated_at')
+        .single()
+
+      if (validationError || !validatedAttendance) {
+        throw new Error(
+          getSupabaseMessage(validationError, 'Gagal memperbarui status valid setelah evidence lengkap.')
+        )
+      }
+
       setState('success')
-      setTodayAttendance(attendanceData)
+      setTodayAttendance(validatedAttendance)
 
       setTimeout(() => {
         resetAttendanceSteps()
