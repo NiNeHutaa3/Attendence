@@ -40,30 +40,6 @@ export default function LoginPage() {
               </div>
 
               {/* STATS */}
-              <div className="mt-12 grid grid-cols-3 gap-4">
-
-                <div className="rounded-2xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur">
-                  <p className="text-sm text-slate-500">Lokasi</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    Akurat
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur">
-                  <p className="text-sm text-slate-500">Bukti</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    Foto
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur">
-                  <p className="text-sm text-slate-500">Laporan</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    Praktis
-                  </p>
-                </div>
-
-              </div>
 
             </div>
           </section>
