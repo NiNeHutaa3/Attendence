@@ -84,9 +84,9 @@ const getUserWithProfile = async (authUser: SupabaseAuthUser): Promise<AuthUser>
     console.error('Error getting user profile:', error)
   }
 
-  // Kalau profile tidak ketemu / error, role akan default karyawan.
+  // Kalau profile tidak ketemu / error, pakai metadata auth sebelum fallback karyawan.
   // (Supabase RLS kemungkinan membuat select dari public.users tidak terizinkan.)
-  const dashboardRole = getDashboardRole(profile?.role || undefined)
+  const dashboardRole = getDashboardRole(profile?.role || authUser.user_metadata?.role)
 
   // Debug: bantu lacak kalau RLS menolak select atau profile tidak ketemu.
   if (!profile?.role) {

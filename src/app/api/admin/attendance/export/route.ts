@@ -15,10 +15,22 @@ const getEnvError = () => {
   return null
 }
 
-const parseISODate = (value?: string) => {
-  if (!value) return null
-  const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? null : d
+const getDayRange = (startDateStr?: string, endDateStr?: string) => {
+  if (!startDateStr || !endDateStr) {
+    return null
+  }
+
+  const startDate = new Date(`${startDateStr}T00:00:00+07:00`)
+  const endDate = new Date(`${endDateStr}T23:59:59.999+07:00`)
+
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return null
+  }
+
+  return {
+    start: startDate.toISOString(),
+    end: endDate.toISOString(),
+  }
 }
 
 export async function GET(request: Request) {
@@ -69,22 +81,17 @@ export async function GET(request: Request) {
   const userId = url.searchParams.get('userId') || undefined
   const statusParam = url.searchParams.get('status') || 'all'
 
-  const startDate = parseISODate(startDateStr)
-  const endDate = parseISODate(endDateStr)
+  const range = getDayRange(startDateStr, endDateStr)
 
-  if (!startDate || !endDate) {
-    return NextResponse.json({ error: 'startDate dan endDate wajib dengan format ISO (YYYY-MM-DD)' }, { status: 400 })
+  if (!range) {
+    return NextResponse.json({ error: 'startDate dan endDate wajib dengan format YYYY-MM-DD' }, { status: 400 })
   }
-
-  // make endDate inclusive (end of day)
-  const startOfDay = new Date(startDate.toISOString())
-  const endOfDay = new Date(new Date(endDate).getTime() + 24 * 60 * 60 * 1000)
 
   let query = serviceSupabase
     .from('attendance')
     .select('*, user:user_id(user_id, email, name, role)')
-    .gte('created_at', startOfDay.toISOString())
-    .lte('created_at', endOfDay.toISOString())
+    .gte('created_at', range.start)
+    .lte('created_at', range.end)
 
   if (userId && userId !== 'all') {
     query = query.eq('user_id', userId)
