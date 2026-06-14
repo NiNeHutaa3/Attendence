@@ -173,7 +173,14 @@ export const UserManagement = () => {
     })
   }
 
+  const resetDetail = () => {
+    setSelectedUser(null)
+    setDetailRecords([])
+    setDetailError(null)
+  }
+
   const startEditUser = (targetUser: User) => {
+    resetDetail()
     setEditingUserId(targetUser.user_id)
     setFormData({
       email: targetUser.email,
@@ -234,6 +241,8 @@ export const UserManagement = () => {
   }
 
   const openUserDetail = (targetUser: User) => {
+    setShowForm(false)
+    resetForm()
     setSelectedUser(targetUser)
     setDetailMonth(getCurrentMonthValue())
     setDetailRecords([])
@@ -388,6 +397,7 @@ export const UserManagement = () => {
             onClick={() => {
               const nextShowForm = !showForm || Boolean(editingUserId)
               setShowForm(nextShowForm)
+              resetDetail()
               setError(null)
               setSuccess(null)
               resetForm()
@@ -438,7 +448,7 @@ export const UserManagement = () => {
       )}
 
       {selectedUser && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="panel-enter overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="grid gap-4 border-b border-slate-100 bg-slate-50 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
             <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-teal-50 text-lg font-bold text-teal-800 ring-1 ring-teal-100">
@@ -457,9 +467,7 @@ export const UserManagement = () => {
             <button
               type="button"
               onClick={() => {
-                setSelectedUser(null)
-                setDetailRecords([])
-                setDetailError(null)
+                resetDetail()
               }}
               className="btn-secondary h-10 w-full sm:w-auto"
             >
@@ -650,7 +658,7 @@ export const UserManagement = () => {
       )}
 
       {showForm && (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="panel-enter rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
             <h3 className="text-lg font-bold text-slate-950">
               {editingUserId ? 'Edit Data Pengguna' : 'Tambah Pengguna Baru'}
@@ -700,7 +708,7 @@ export const UserManagement = () => {
                   Password
                 </label>
                 <input
-                  type="password"
+                  type="text"
                   id="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
