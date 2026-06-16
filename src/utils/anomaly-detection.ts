@@ -4,6 +4,7 @@ export type AnomalyReason =
 export type IpRegionResult = {
   ipAddress: string
   region: string | null
+  city: string | null
   countryCode: string | null
 }
 
@@ -33,7 +34,7 @@ export const isIpOutsideOperationalArea = (
   const normalizedCountryCode = normalizeRegion(countryCode)
 
   if (!normalizedRegion) {
-    return false
+    return true
   }
 
   const isIndonesia = !normalizedCountryCode || normalizedCountryCode === 'id'
@@ -68,45 +69,64 @@ export const lookupIpRegion = async (ipAddress: string): Promise<IpRegionResult>
     return {
       ipAddress: ipAddress || 'unavailable',
       region: null,
+      city: null,
       countryCode: null,
     }
   }
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 3500)
+  const fetchJson = async (url: string) => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3500)
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        return null
+      }
+
+      return await response.json()
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
 
   try {
-    const response = await fetch(`https://ipapi.co/${encodeURIComponent(ipAddress)}/json/`, {
-      signal: controller.signal,
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+    const ipapiData = await fetchJson(
+      `https://ipapi.co/${encodeURIComponent(ipAddress)}/json/`
+    )
 
-    if (!response.ok) {
+    if (ipapiData?.region || ipapiData?.city || ipapiData?.country_code) {
       return {
         ipAddress,
-        region: null,
-        countryCode: null,
+        region: typeof ipapiData.region === 'string' ? ipapiData.region : null,
+        city: typeof ipapiData.city === 'string' ? ipapiData.city : null,
+        countryCode:
+          typeof ipapiData.country_code === 'string' ? ipapiData.country_code : null,
       }
     }
 
-    const data = await response.json()
-
+    const ipwhoData = await fetchJson(`https://ipwho.is/${encodeURIComponent(ipAddress)}`)
     return {
       ipAddress,
-      region: typeof data.region === 'string' ? data.region : null,
-      countryCode: typeof data.country_code === 'string' ? data.country_code : null,
+      region: typeof ipwhoData?.region === 'string' ? ipwhoData.region : null,
+      city: typeof ipwhoData?.city === 'string' ? ipwhoData.city : null,
+      countryCode:
+        typeof ipwhoData?.country_code === 'string' ? ipwhoData.country_code : null,
     }
   } catch (error) {
     console.warn('IP region lookup failed:', error)
     return {
       ipAddress,
       region: null,
+      city: null,
       countryCode: null,
     }
-  } finally {
-    clearTimeout(timeoutId)
   }
 }
 

@@ -31,6 +31,15 @@ const getDayRange = (startDateStr?: string, endDateStr?: string) => {
   }
 }
 
+const isMissingAnomalyColumnError = (error: any) => {
+  const message = String(error?.message || error?.details || '').toLowerCase()
+
+  return (
+    message.includes('schema cache') &&
+    (message.includes('anomaly_status') || message.includes('anomaly_reason'))
+  )
+}
+
 export async function GET(request: Request) {
   const envError = getEnvError()
 
@@ -98,10 +107,33 @@ export async function GET(request: Request) {
     attendanceQuery = attendanceQuery.eq('user_id', userId)
   }
 
-  const { data: attendanceRows, error: attendanceError } = await attendanceQuery.order(
+  let { data: attendanceRows, error: attendanceError } = await attendanceQuery.order(
     'created_at',
     { ascending: false }
   )
+
+  if (attendanceError && isMissingAnomalyColumnError(attendanceError)) {
+    let fallbackAttendanceQuery = serviceSupabase
+      .from('attendance')
+      .select('attendance_id,user_id,check_in_time,check_out_time,status,created_at,updated_at')
+      .gte('created_at', range.start)
+      .lte('created_at', range.end)
+
+    if (userId !== 'all') {
+      fallbackAttendanceQuery = fallbackAttendanceQuery.eq('user_id', userId)
+    }
+
+    const fallbackResult = await fallbackAttendanceQuery.order('created_at', {
+      ascending: false,
+    })
+
+    attendanceRows = (fallbackResult.data || []).map((record) => ({
+      ...record,
+      anomaly_status: false,
+      anomaly_reason: null,
+    }))
+    attendanceError = fallbackResult.error
+  }
 
   if (attendanceError) {
     return NextResponse.json({ error: attendanceError.message }, { status: 500 })

@@ -52,13 +52,13 @@ export async function POST(request: Request) {
   const ipAddress = body.ipAddress?.trim() || getForwardedIp(request)
   const ipRegion = await lookupIpRegion(ipAddress)
   const anomaly = evaluateAttendanceAnomaly({
-    ipRegion: ipRegion.region,
+    ipRegion: [ipRegion.city, ipRegion.region].filter(Boolean).join(', ') || null,
     countryCode: ipRegion.countryCode,
   })
 
   return NextResponse.json({
     ipAddress: ipRegion.ipAddress,
-    ipRegion: ipRegion.region,
+    ipRegion: [ipRegion.city, ipRegion.region].filter(Boolean).join(', ') || null,
     ...anomaly,
   })
 }

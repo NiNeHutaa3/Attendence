@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { getAttendanceEffectiveStatus } from '@/utils/attendance-validation'
+import type { Attendance, User } from '@/types'
 
 type DashboardStats = {
   totalUsers: number
@@ -13,6 +13,29 @@ type DashboardStats = {
   anomalyAttendance: number
   loading: boolean
   error?: string
+}
+
+type AttendanceRecord = Attendance & {
+  user: User | null
+}
+
+const formatLocalDateInput = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+const getSessionToken = async () => {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+
+  if (!token) {
+    throw new Error('Session admin tidak ditemukan. Silakan login ulang.')
+  }
+
+  return token
 }
 
 export const AdminDashboardStats = () => {
@@ -29,75 +52,50 @@ export const AdminDashboardStats = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('user_id', { count: 'exact' })
-          .eq('role', 'karyawan')
-
-        const todayLocal = new Date()
-        const start = new Date(todayLocal)
-        start.setHours(0, 0, 0, 0)
-        const end = new Date(todayLocal)
-        end.setHours(23, 59, 59, 999)
-
-        const { data: attendanceData } = await supabase
-          .from('attendance')
-          .select('attendance_id,status,anomaly_status')
-          .gte('created_at', start.toISOString())
-          .lte('created_at', end.toISOString())
-
-        const attendanceIds = (attendanceData || []).map((record: any) => record.attendance_id)
-        const [
-          { data: photos },
-          { data: locations },
-          { data: accessLogs },
-        ] = attendanceIds.length
-          ? await Promise.all([
-              supabase
-                .from('photo_attendance')
-                .select('attendance_id,event_type,photo_url,captured_at,created_at')
-                .in('attendance_id', attendanceIds),
-              supabase
-                .from('location_log')
-                .select('attendance_id,event_type,latitude,longitude,distance_from_center,is_within_geofence,created_at')
-                .in('attendance_id', attendanceIds),
-              supabase
-                .from('access_log')
-                .select('attendance_id,event_type,user_agent,ip_address,created_at')
-                .in('attendance_id', attendanceIds),
-            ])
-          : [
-              { data: [] },
-              { data: [] },
-              { data: [] },
-            ]
-
-        const groupByAttendance = (rows: any[] = []) =>
-          rows.reduce<Record<string, any[]>>((groups, row) => {
-            groups[row.attendance_id] = groups[row.attendance_id] || []
-            groups[row.attendance_id].push(row)
-            return groups
-          }, {})
-
-        const photosByAttendance = groupByAttendance(photos || [])
-        const locationsByAttendance = groupByAttendance(locations || [])
-        const accessLogsByAttendance = groupByAttendance(accessLogs || [])
-        const effectiveAttendance = (attendanceData || []).map((record: any) => ({
-          ...record,
-          status: getAttendanceEffectiveStatus(record.status, {
-            photos: photosByAttendance[record.attendance_id] || [],
-            locations: locationsByAttendance[record.attendance_id] || [],
-            access_logs: accessLogsByAttendance[record.attendance_id] || [],
+        const token = await getSessionToken()
+        const today = formatLocalDateInput(new Date())
+        const [usersResponse, attendanceResponse] = await Promise.all([
+          fetch('/api/admin/users/list', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           }),
-        }))
+          fetch(
+            `/api/admin/attendance?startDate=${today}&endDate=${today}&userId=all&status=all`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          ),
+        ])
+
+        if (!usersResponse.ok) {
+          const body = await usersResponse.json().catch(() => null)
+          throw new Error(body?.error || 'Gagal memuat total karyawan')
+        }
+
+        if (!attendanceResponse.ok) {
+          const body = await attendanceResponse.json().catch(() => null)
+          throw new Error(body?.error || 'Gagal memuat statistik absensi')
+        }
+
+        const usersBody = (await usersResponse.json()) as { users?: User[] }
+        const attendanceBody = (await attendanceResponse.json()) as {
+          records?: AttendanceRecord[]
+        }
+        const employeeUsers = (usersBody.users || []).filter(
+          (user) => user.role === 'karyawan'
+        )
+        const effectiveAttendance = attendanceBody.records || []
 
         const validCount = effectiveAttendance.filter((a: any) => a.status === 'valid').length || 0
         const invalidCount =
           effectiveAttendance.filter((a: any) => a.status === 'invalid').length || 0
 
         setStats({
-          totalUsers: userData?.length || 0,
-          attendanceToday: attendanceData?.length || 0,
+          totalUsers: employeeUsers.length,
+          attendanceToday: effectiveAttendance.length,
           validCheckIns: validCount,
           invalidCheckIns: invalidCount,
           normalAttendance:
