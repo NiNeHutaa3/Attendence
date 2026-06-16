@@ -166,6 +166,8 @@ export async function GET(request: Request) {
       'Check-in': record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
       'Check-out': record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
       Status: record.status,
+      'Status Anomali': record.anomaly_status ? 'Perlu Verifikasi' : 'Normal',
+      'Alasan Anomali': record.anomaly_reason || '-',
     }
   })
 

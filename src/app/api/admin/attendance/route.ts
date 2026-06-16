@@ -90,7 +90,7 @@ export async function GET(request: Request) {
 
   let attendanceQuery = serviceSupabase
     .from('attendance')
-    .select('attendance_id,user_id,check_in_time,check_out_time,status,created_at,updated_at')
+    .select('attendance_id,user_id,check_in_time,check_out_time,status,anomaly_status,anomaly_reason,created_at,updated_at')
     .gte('created_at', range.start)
     .lte('created_at', range.end)
 

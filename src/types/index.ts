@@ -16,6 +16,8 @@ export type Attendance = {
   check_in_time: string
   check_out_time?: string | null
   status: 'valid' | 'invalid'
+  anomaly_status: boolean
+  anomaly_reason?: string | null
   created_at: string
   updated_at?: string
 }
@@ -46,7 +48,9 @@ export type AccessLog = {
   event_type?: 'checkin' | 'checkout'
   user_agent: string
   ip_address: string
+  ip_region?: string | null
   is_vpn: boolean
+  developer_mode_active?: boolean
   created_at: string
 }
 

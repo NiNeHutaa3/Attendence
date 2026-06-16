@@ -14,6 +14,12 @@ import {
   getUserAgent,
 } from '@/utils/camera'
 import { hasCompleteAttendanceEvidence } from '@/utils/attendance-validation'
+import {
+  detectDeveloperModeActive,
+  evaluateAttendanceAnomaly,
+  mergeAnomalyReasons,
+  type AnomalyEvaluationResult,
+} from '@/utils/anomaly-detection'
 import type { Attendance } from '@/types'
 
 const MapComponent = dynamic(() => import('@/components/common/MapComponent'), {
@@ -50,6 +56,12 @@ const DEFAULT_GEOFENCE: ActiveGeofence = {
 
 type CheckInState = 'idle' | 'getting-location' | 'capturing-photo' | 'uploading' | 'success' | 'error'
 type AttendanceAction = 'checkin' | 'checkout'
+
+type AttendanceAnomalyPayload = AnomalyEvaluationResult & {
+  ipAddress: string
+  ipRegion: string | null
+  developerModeActive: boolean
+}
 
 const getSupabaseMessage = (error: any, fallback: string) =>
   error?.message || error?.error_description || fallback
@@ -90,6 +102,49 @@ const ensureUserProfile = async (user: NonNullable<ReturnType<typeof useAuth>['u
         `Gagal membuat profil user. Tambahkan manual di public.users dengan user_id: ${user.id}.`
       )
     )
+  }
+}
+
+const getAnomalyPayload = async (ipAddress: string): Promise<AttendanceAnomalyPayload> => {
+  const developerModeActive = detectDeveloperModeActive()
+
+  try {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+
+    if (!token) {
+      throw new Error('Session token tidak tersedia')
+    }
+
+    const response = await fetch('/api/attendance/anomaly', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ipAddress,
+        developerModeActive,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Gagal memeriksa anomali')
+    }
+
+    return (await response.json()) as AttendanceAnomalyPayload
+  } catch (error) {
+    console.warn('Anomaly check failed, attendance will still be saved:', error)
+    return {
+      ipAddress,
+      ipRegion: null,
+      developerModeActive,
+      ...evaluateAttendanceAnomaly({
+        developerModeActive,
+        ipRegion: null,
+        countryCode: null,
+      }),
+    }
   }
 }
 
@@ -273,7 +328,7 @@ export const CheckInComponent = () => {
     attendanceId: string,
     capturedAt: string,
     eventType: AttendanceAction
-  ) => {
+  ): Promise<AttendanceAnomalyPayload> => {
     if (!userLocation || !photoBlob || isValid === null || distance === null) {
       throw new Error('Data lokasi atau foto belum lengkap')
     }
@@ -289,6 +344,7 @@ export const CheckInComponent = () => {
     const photoUrl = await uploadPhoto(photoBlob, `${attendanceId}-${eventType}`, supabase)
     const ipAddress = await getIPAddress()
     const userAgent = getUserAgent()
+    const anomalyPayload = await getAnomalyPayload(ipAddress)
     const evidenceIsComplete = hasCompleteAttendanceEvidence(
       {
         photos: [
@@ -366,7 +422,9 @@ export const CheckInComponent = () => {
       event_type: eventType,
       user_agent: userAgent,
       ip_address: ipAddress,
+      ip_region: anomalyPayload.ipRegion,
       is_vpn: false,
+      developer_mode_active: anomalyPayload.developerModeActive,
       created_at: capturedAt,
     })
 
@@ -378,6 +436,8 @@ export const CheckInComponent = () => {
         )
       )
     }
+
+    return anomalyPayload
   }
 
   const handleSubmitAttendance = async () => {
@@ -413,12 +473,22 @@ export const CheckInComponent = () => {
           throw new Error('Data check-in hari ini tidak ditemukan atau sudah check-out.')
         }
 
-        await saveAttendanceEvidence(todayAttendance.attendance_id, now, 'checkout')
+        const anomalyPayload = await saveAttendanceEvidence(
+          todayAttendance.attendance_id,
+          now,
+          'checkout'
+        )
+        const anomalyReason = mergeAnomalyReasons(
+          todayAttendance.anomaly_reason,
+          anomalyPayload.anomaly_reason
+        )
 
         const { error: updateError } = await supabase
           .from('attendance')
           .update({
             check_out_time: now,
+            anomaly_status: Boolean(todayAttendance.anomaly_status || anomalyPayload.anomaly_status),
+            anomaly_reason: anomalyReason,
             updated_at: now,
           })
           .eq('attendance_id', todayAttendance.attendance_id)
@@ -431,6 +501,8 @@ export const CheckInComponent = () => {
         setTodayAttendance({
           ...todayAttendance,
           check_out_time: now,
+          anomaly_status: Boolean(todayAttendance.anomaly_status || anomalyPayload.anomaly_status),
+          anomaly_reason: anomalyReason,
           updated_at: now,
         })
 
@@ -447,9 +519,11 @@ export const CheckInComponent = () => {
           user_id: user.id,
           check_in_time: now,
           status: 'invalid',
+          anomaly_status: false,
+          anomaly_reason: null,
           created_at: now,
         })
-        .select('attendance_id, user_id, check_in_time, check_out_time, status, created_at')
+        .select('attendance_id, user_id, check_in_time, check_out_time, status, anomaly_status, anomaly_reason, created_at')
         .single()
 
       if (attendanceError || !attendanceData) {
@@ -462,16 +536,18 @@ export const CheckInComponent = () => {
       }
 
       const attendanceId = attendanceData.attendance_id
-      await saveAttendanceEvidence(attendanceId, now, 'checkin')
+      const anomalyPayload = await saveAttendanceEvidence(attendanceId, now, 'checkin')
 
       const { data: validatedAttendance, error: validationError } = await supabase
         .from('attendance')
         .update({
           status: 'valid',
+          anomaly_status: anomalyPayload.anomaly_status,
+          anomaly_reason: anomalyPayload.anomaly_reason,
           updated_at: now,
         })
         .eq('attendance_id', attendanceId)
-        .select('attendance_id, user_id, check_in_time, check_out_time, status, created_at, updated_at')
+        .select('attendance_id, user_id, check_in_time, check_out_time, status, anomaly_status, anomaly_reason, created_at, updated_at')
         .single()
 
       if (validationError || !validatedAttendance) {

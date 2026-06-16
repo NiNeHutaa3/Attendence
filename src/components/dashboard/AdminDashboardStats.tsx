@@ -9,6 +9,8 @@ type DashboardStats = {
   attendanceToday: number
   validCheckIns: number
   invalidCheckIns: number
+  normalAttendance: number
+  anomalyAttendance: number
   loading: boolean
   error?: string
 }
@@ -19,6 +21,8 @@ export const AdminDashboardStats = () => {
     attendanceToday: 0,
     validCheckIns: 0,
     invalidCheckIns: 0,
+    normalAttendance: 0,
+    anomalyAttendance: 0,
     loading: true,
   })
 
@@ -38,7 +42,7 @@ export const AdminDashboardStats = () => {
 
         const { data: attendanceData } = await supabase
           .from('attendance')
-          .select('attendance_id,status')
+          .select('attendance_id,status,anomaly_status')
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString())
 
@@ -96,6 +100,10 @@ export const AdminDashboardStats = () => {
           attendanceToday: attendanceData?.length || 0,
           validCheckIns: validCount,
           invalidCheckIns: invalidCount,
+          normalAttendance:
+            effectiveAttendance.filter((a: any) => a.anomaly_status !== true).length || 0,
+          anomalyAttendance:
+            effectiveAttendance.filter((a: any) => a.anomaly_status === true).length || 0,
           loading: false,
         })
       } catch (error) {
@@ -199,8 +207,8 @@ export const AdminDashboardStats = () => {
           }
         />
         <StatCard
-          label="Check-in Valid"
-          value={stats.validCheckIns}
+          label="Total Normal"
+          value={stats.normalAttendance}
           color="green"
           icon={
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -213,14 +221,14 @@ export const AdminDashboardStats = () => {
           }
         />
         <StatCard
-          label="Perlu Diperiksa"
-          value={stats.invalidCheckIns}
-          color="red"
+          label="Total Anomali"
+          value={stats.anomalyAttendance}
+          color="yellow"
           icon={
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
               <path
                 fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.518 11.587c.75 1.333-.213 2.981-1.743 2.981H3.482c-1.53 0-2.493-1.648-1.743-2.981L8.257 3.1zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-2a1 1 0 01-1-1V8a1 1 0 112 0v3a1 1 0 01-1 1z"
                 clipRule="evenodd"
               />
             </svg>

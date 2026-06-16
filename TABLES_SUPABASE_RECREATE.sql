@@ -58,6 +58,8 @@ create table if not exists public.attendance (
   check_in_time timestamptz,
   check_out_time timestamptz,
   status text not null default 'invalid' check (status in ('valid','invalid')),
+  anomaly_status boolean not null default false,
+  anomaly_reason text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -99,8 +101,10 @@ create table if not exists public.access_log (
   attendance_id uuid not null references public.attendance(attendance_id) on delete cascade,
   event_type text not null default 'checkin' check (event_type in ('checkin', 'checkout')),
   user_agent text,
-  ip_address inet,
+  ip_address text,
+  ip_region text,
   is_vpn boolean not null default false,
+  developer_mode_active boolean not null default false,
   created_at timestamptz not null default now()
 );
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { AnomalyStatusBadge } from '@/components/dashboard/AnomalyStatusBadge'
 import type { AccessLog, Attendance, LocationLog, PhotoAttendance, User } from '@/types'
 
 type AttendanceRecord = Attendance & {
@@ -158,10 +159,13 @@ export const AttendanceHistory = () => {
   const filteredRecords = records.filter(
     (record) => statusFilter === 'all' || record.status === statusFilter
   )
-  const validRecords = filteredRecords.filter((record) => record.status === 'valid').length
-  const invalidRecords = filteredRecords.filter((record) => record.status === 'invalid').length
+  const normalRecords = filteredRecords.filter((record) => record.anomaly_status !== true).length
+  const anomalyRecords = filteredRecords.filter((record) => record.anomaly_status === true).length
   const selectedCheckInPhoto = selectedRecord?.photos.find((photo) => photo.event_type === 'checkin')
   const selectedCheckOutPhoto = selectedRecord?.photos.find((photo) => photo.event_type === 'checkout')
+  const selectedCheckInAccessLog = selectedRecord?.access_logs.find(
+    (log) => (log.event_type || 'checkin') === 'checkin'
+  )
   const selectedPhotos: Array<[string, PhotoAttendance | undefined]> = [
     ['Check-in Photo', selectedCheckInPhoto],
     ['Check-out Photo', selectedCheckOutPhoto],
@@ -311,16 +315,16 @@ export const AttendanceHistory = () => {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <p className="mb-1 text-sm font-semibold text-slate-500">Jumlah</p>
+          <p className="mb-1 text-sm font-semibold text-slate-500">Total Absensi</p>
           <p className="text-2xl sm:text-3xl font-bold text-slate-950">{filteredRecords.length}</p>
         </div>
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5">
-          <p className="mb-1 text-sm font-semibold text-emerald-700">Valid</p>
-          <p className="text-2xl sm:text-3xl font-bold text-emerald-950">{validRecords}</p>
+          <p className="mb-1 text-sm font-semibold text-emerald-700">Total Normal</p>
+          <p className="text-2xl sm:text-3xl font-bold text-emerald-950">{normalRecords}</p>
         </div>
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 sm:p-5">
-          <p className="mb-1 text-sm font-semibold text-rose-700">Invalid</p>
-          <p className="text-2xl sm:text-3xl font-bold text-rose-950">{invalidRecords}</p>
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 sm:p-5">
+          <p className="mb-1 text-sm font-semibold text-amber-700">Total Anomali</p>
+          <p className="text-2xl sm:text-3xl font-bold text-amber-950">{anomalyRecords}</p>
         </div>
       </div>
 
@@ -343,6 +347,9 @@ export const AttendanceHistory = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Status Anomali
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                   Aksi
                 </th>
               </tr>
@@ -350,13 +357,13 @@ export const AttendanceHistory = () => {
             <tbody className="divide-y divide-slate-100 bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center">
+                  <td colSpan={6} className="px-6 py-8 text-center">
                     <div className="spinner mx-auto h-8 w-8" />
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
                     <div className="mx-auto max-w-sm">
                       <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
                         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,6 +411,9 @@ export const AttendanceHistory = () => {
                       >
                         {record.status}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <AnomalyStatusBadge isAnomaly={record.anomaly_status} />
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <button
@@ -467,9 +477,42 @@ export const AttendanceHistory = () => {
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Anomaly Status</p>
+                  <div className="mt-2">
+                    <AnomalyStatusBadge isAnomaly={selectedRecord.anomaly_status} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-5">
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">IP Address</p>
+                  <p className="mt-2 break-words text-sm font-semibold text-slate-950">
+                    {selectedCheckInAccessLog?.ip_address || '-'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Region IP</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {selectedCheckInAccessLog?.ip_region || 'Tidak tersedia'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Developer Mode Status</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {selectedCheckInAccessLog?.developer_mode_active ? 'Aktif' : 'Tidak Aktif'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
                   <p className="text-xs font-bold uppercase text-slate-500">Akurasi Lokasi</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">
                     {checkInAccuracy === null ? 'Belum tersedia' : `${checkInAccuracy}%`}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Anomaly Reason</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {selectedRecord.anomaly_reason || '-'}
                   </p>
                 </div>
               </div>
