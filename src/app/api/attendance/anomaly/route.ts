@@ -54,6 +54,7 @@ export async function POST(request: Request) {
   const anomaly = evaluateAttendanceAnomaly({
     ipRegion: [ipRegion.city, ipRegion.region].filter(Boolean).join(', ') || null,
     countryCode: ipRegion.countryCode,
+    network: ipRegion.network,
   })
 
   return NextResponse.json({

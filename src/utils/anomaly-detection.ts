@@ -6,11 +6,13 @@ export type IpRegionResult = {
   region: string | null
   city: string | null
   countryCode: string | null
+  network: string | null
 }
 
 export type AnomalyEvaluationInput = {
   ipRegion?: string | null
   countryCode?: string | null
+  network?: string | null
 }
 
 export type AnomalyEvaluationResult = {
@@ -23,18 +25,52 @@ const OPERATIONAL_REGION_KEYWORDS = [
   'riau islands',
   'provinsi kepulauan riau',
 ]
+const SUSPICIOUS_NETWORK_KEYWORDS = [
+  'vpn',
+  'proxy',
+  'hosting',
+  'host',
+  'cloud',
+  'data center',
+  'datacenter',
+  'digitalocean',
+  'amazon',
+  'aws',
+  'google cloud',
+  'microsoft',
+  'azure',
+  'ovh',
+  'm247',
+  'leaseweb',
+  'contabo',
+  'choopa',
+  'vultr',
+  'linode',
+]
 
 const normalizeRegion = (value?: string | null) => value?.trim().toLowerCase() || ''
+const isSuspiciousNetwork = (network?: string | null) => {
+  const normalizedNetwork = normalizeRegion(network)
+
+  if (!normalizedNetwork) {
+    return false
+  }
+
+  return SUSPICIOUS_NETWORK_KEYWORDS.some((keyword) =>
+    normalizedNetwork.includes(keyword)
+  )
+}
 
 export const isIpOutsideOperationalArea = (
   region?: string | null,
-  countryCode?: string | null
+  countryCode?: string | null,
+  network?: string | null
 ) => {
   const normalizedRegion = normalizeRegion(region)
   const normalizedCountryCode = normalizeRegion(countryCode)
 
   if (!normalizedRegion) {
-    return true
+    return false
   }
 
   const isIndonesia = !normalizedCountryCode || normalizedCountryCode === 'id'
@@ -42,14 +78,23 @@ export const isIpOutsideOperationalArea = (
     normalizedRegion.includes(keyword)
   )
 
-  return !isIndonesia || !isKepri
+  if (!isIndonesia) {
+    return true
+  }
+
+  if (isKepri) {
+    return false
+  }
+
+  return isSuspiciousNetwork(network)
 }
 
 export const evaluateAttendanceAnomaly = ({
   ipRegion,
   countryCode,
+  network,
 }: AnomalyEvaluationInput): AnomalyEvaluationResult => {
-  const ipAnomaly = isIpOutsideOperationalArea(ipRegion, countryCode)
+  const ipAnomaly = isIpOutsideOperationalArea(ipRegion, countryCode, network)
 
   if (ipAnomaly) {
     return {
@@ -71,6 +116,7 @@ export const lookupIpRegion = async (ipAddress: string): Promise<IpRegionResult>
       region: null,
       city: null,
       countryCode: null,
+      network: null,
     }
   }
 
@@ -108,6 +154,12 @@ export const lookupIpRegion = async (ipAddress: string): Promise<IpRegionResult>
         city: typeof ipapiData.city === 'string' ? ipapiData.city : null,
         countryCode:
           typeof ipapiData.country_code === 'string' ? ipapiData.country_code : null,
+        network:
+          typeof ipapiData.org === 'string'
+            ? ipapiData.org
+            : typeof ipapiData.asn === 'string'
+              ? ipapiData.asn
+              : null,
       }
     }
 
@@ -118,6 +170,14 @@ export const lookupIpRegion = async (ipAddress: string): Promise<IpRegionResult>
       city: typeof ipwhoData?.city === 'string' ? ipwhoData.city : null,
       countryCode:
         typeof ipwhoData?.country_code === 'string' ? ipwhoData.country_code : null,
+      network:
+        [
+          ipwhoData?.connection?.org,
+          ipwhoData?.connection?.isp,
+          ipwhoData?.connection?.domain,
+        ]
+          .filter((value) => typeof value === 'string' && value.trim().length > 0)
+          .join(' / ') || null,
     }
   } catch (error) {
     console.warn('IP region lookup failed:', error)
@@ -126,6 +186,7 @@ export const lookupIpRegion = async (ipAddress: string): Promise<IpRegionResult>
       region: null,
       city: null,
       countryCode: null,
+      network: null,
     }
   }
 }

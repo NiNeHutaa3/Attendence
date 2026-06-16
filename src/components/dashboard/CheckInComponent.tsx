@@ -145,6 +145,7 @@ const getAnomalyPayload = async (ipAddress: string): Promise<AttendanceAnomalyPa
       ...evaluateAttendanceAnomaly({
         ipRegion: null,
         countryCode: null,
+        network: null,
       }),
     }
   }
