@@ -15,7 +15,6 @@ import {
 } from '@/utils/camera'
 import { hasCompleteAttendanceEvidence } from '@/utils/attendance-validation'
 import {
-  detectDeveloperModeActive,
   evaluateAttendanceAnomaly,
   mergeAnomalyReasons,
   type AnomalyEvaluationResult,
@@ -60,11 +59,19 @@ type AttendanceAction = 'checkin' | 'checkout'
 type AttendanceAnomalyPayload = AnomalyEvaluationResult & {
   ipAddress: string
   ipRegion: string | null
-  developerModeActive: boolean
 }
 
 const getSupabaseMessage = (error: any, fallback: string) =>
   error?.message || error?.error_description || fallback
+
+const isMissingSchemaColumnError = (error: any, columns: string[]) => {
+  const message = String(error?.message || error?.details || '').toLowerCase()
+
+  return (
+    message.includes('schema cache') &&
+    columns.some((column) => message.includes(column.toLowerCase()))
+  )
+}
 
 const ensureUserProfile = async (user: NonNullable<ReturnType<typeof useAuth>['user']>) => {
   const { data: existingProfile, error: profileError } = await supabase
@@ -106,8 +113,6 @@ const ensureUserProfile = async (user: NonNullable<ReturnType<typeof useAuth>['u
 }
 
 const getAnomalyPayload = async (ipAddress: string): Promise<AttendanceAnomalyPayload> => {
-  const developerModeActive = detectDeveloperModeActive()
-
   try {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
@@ -124,7 +129,6 @@ const getAnomalyPayload = async (ipAddress: string): Promise<AttendanceAnomalyPa
       },
       body: JSON.stringify({
         ipAddress,
-        developerModeActive,
       }),
     })
 
@@ -138,9 +142,7 @@ const getAnomalyPayload = async (ipAddress: string): Promise<AttendanceAnomalyPa
     return {
       ipAddress,
       ipRegion: null,
-      developerModeActive,
       ...evaluateAttendanceAnomaly({
-        developerModeActive,
         ipRegion: null,
         countryCode: null,
       }),
@@ -417,16 +419,41 @@ export const CheckInComponent = () => {
       )
     }
 
-    const { error: accessError } = await supabase.from('access_log').insert({
+    const accessLogPayload = {
       attendance_id: attendanceId,
       event_type: eventType,
       user_agent: userAgent,
       ip_address: ipAddress,
       ip_region: anomalyPayload.ipRegion,
       is_vpn: false,
-      developer_mode_active: anomalyPayload.developerModeActive,
       created_at: capturedAt,
-    })
+    }
+    const { error: accessError } = await supabase.from('access_log').insert(accessLogPayload)
+
+    if (
+      accessError &&
+      isMissingSchemaColumnError(accessError, ['ip_region'])
+    ) {
+      const { error: fallbackAccessError } = await supabase.from('access_log').insert({
+        attendance_id: attendanceId,
+        event_type: eventType,
+        user_agent: userAgent,
+        ip_address: ipAddress,
+        is_vpn: false,
+        created_at: capturedAt,
+      })
+
+      if (fallbackAccessError) {
+        throw new Error(
+          getSupabaseMessage(
+            fallbackAccessError,
+            'Gagal menyimpan access log. Pastikan tabel access_log dan policy insert sudah benar.'
+          )
+        )
+      }
+
+      return anomalyPayload
+    }
 
     if (accessError) {
       throw new Error(
@@ -483,17 +510,33 @@ export const CheckInComponent = () => {
           anomalyPayload.anomaly_reason
         )
 
+        const checkoutUpdatePayload = {
+          check_out_time: now,
+          anomaly_status: Boolean(todayAttendance.anomaly_status || anomalyPayload.anomaly_status),
+          anomaly_reason: anomalyReason,
+          updated_at: now,
+        }
         const { error: updateError } = await supabase
           .from('attendance')
-          .update({
-            check_out_time: now,
-            anomaly_status: Boolean(todayAttendance.anomaly_status || anomalyPayload.anomaly_status),
-            anomaly_reason: anomalyReason,
-            updated_at: now,
-          })
+          .update(checkoutUpdatePayload)
           .eq('attendance_id', todayAttendance.attendance_id)
 
-        if (updateError) {
+        if (
+          updateError &&
+          isMissingSchemaColumnError(updateError, ['anomaly_status', 'anomaly_reason'])
+        ) {
+          const { error: fallbackUpdateError } = await supabase
+            .from('attendance')
+            .update({
+              check_out_time: now,
+              updated_at: now,
+            })
+            .eq('attendance_id', todayAttendance.attendance_id)
+
+          if (fallbackUpdateError) {
+            throw fallbackUpdateError
+          }
+        } else if (updateError) {
           throw updateError
         }
 
@@ -513,18 +556,38 @@ export const CheckInComponent = () => {
         return
       }
 
-      const { data: attendanceData, error: attendanceError } = await supabase
+      const insertPayload = {
+        user_id: user.id,
+        check_in_time: now,
+        status: 'invalid',
+        anomaly_status: false,
+        anomaly_reason: null,
+        created_at: now,
+      }
+      let { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance')
-        .insert({
-          user_id: user.id,
-          check_in_time: now,
-          status: 'invalid',
-          anomaly_status: false,
-          anomaly_reason: null,
-          created_at: now,
-        })
+        .insert(insertPayload)
         .select('attendance_id, user_id, check_in_time, check_out_time, status, anomaly_status, anomaly_reason, created_at')
         .single()
+
+      if (
+        attendanceError &&
+        isMissingSchemaColumnError(attendanceError, ['anomaly_status', 'anomaly_reason'])
+      ) {
+        const fallbackResult = await supabase
+          .from('attendance')
+          .insert({
+            user_id: user.id,
+            check_in_time: now,
+            status: 'invalid',
+            created_at: now,
+          })
+          .select('attendance_id, user_id, check_in_time, check_out_time, status, created_at')
+          .single()
+
+        attendanceData = fallbackResult.data
+        attendanceError = fallbackResult.error
+      }
 
       if (attendanceError || !attendanceData) {
         throw new Error(
@@ -538,7 +601,7 @@ export const CheckInComponent = () => {
       const attendanceId = attendanceData.attendance_id
       const anomalyPayload = await saveAttendanceEvidence(attendanceId, now, 'checkin')
 
-      const { data: validatedAttendance, error: validationError } = await supabase
+      let { data: validatedAttendance, error: validationError } = await supabase
         .from('attendance')
         .update({
           status: 'valid',
@@ -550,6 +613,24 @@ export const CheckInComponent = () => {
         .select('attendance_id, user_id, check_in_time, check_out_time, status, anomaly_status, anomaly_reason, created_at, updated_at')
         .single()
 
+      if (
+        validationError &&
+        isMissingSchemaColumnError(validationError, ['anomaly_status', 'anomaly_reason'])
+      ) {
+        const fallbackResult = await supabase
+          .from('attendance')
+          .update({
+            status: 'valid',
+            updated_at: now,
+          })
+          .eq('attendance_id', attendanceId)
+          .select('attendance_id, user_id, check_in_time, check_out_time, status, created_at, updated_at')
+          .single()
+
+        validatedAttendance = fallbackResult.data
+        validationError = fallbackResult.error
+      }
+
       if (validationError || !validatedAttendance) {
         throw new Error(
           getSupabaseMessage(validationError, 'Gagal memperbarui status valid setelah evidence lengkap.')
@@ -557,7 +638,11 @@ export const CheckInComponent = () => {
       }
 
       setState('success')
-      setTodayAttendance(validatedAttendance)
+      setTodayAttendance({
+        ...validatedAttendance,
+        anomaly_status: validatedAttendance.anomaly_status ?? anomalyPayload.anomaly_status,
+        anomaly_reason: validatedAttendance.anomaly_reason ?? anomalyPayload.anomaly_reason,
+      })
 
       setTimeout(() => {
         resetAttendanceSteps()

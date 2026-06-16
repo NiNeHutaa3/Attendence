@@ -8,8 +8,7 @@ add column if not exists anomaly_status boolean not null default false,
 add column if not exists anomaly_reason text;
 
 alter table public.access_log
-add column if not exists ip_region text,
-add column if not exists developer_mode_active boolean not null default false;
+add column if not exists ip_region text;
 
 alter table public.access_log
 alter column ip_address type text
@@ -22,13 +21,13 @@ comment on column public.attendance.anomaly_status is
 'True jika absensi memiliki warning anomali yang perlu diverifikasi admin.';
 
 comment on column public.attendance.anomaly_reason is
-'Alasan anomali, misalnya Developer Mode Active atau IP Address Outside Operational Area.';
+'Alasan anomali, misalnya IP Address Outside Operational Area.';
 
 comment on column public.access_log.ip_region is
 'Region/provinsi hasil lookup IP saat absensi dilakukan.';
 
-comment on column public.access_log.developer_mode_active is
-'Status developer mode perangkat yang dikirim/dideteksi saat absensi.';
+alter table public.access_log
+drop column if exists developer_mode_active;
 
 notify pgrst, 'reload schema';
 

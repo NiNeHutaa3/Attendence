@@ -50,7 +50,6 @@ export type AccessLog = {
   ip_address: string
   ip_region?: string | null
   is_vpn: boolean
-  developer_mode_active?: boolean
   created_at: string
 }
 

@@ -484,7 +484,7 @@ export const AttendanceHistory = () => {
                 </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-5">
+              <div className="grid gap-4 lg:grid-cols-4">
                 <div className="rounded-lg border border-slate-200 p-4">
                   <p className="text-xs font-bold uppercase text-slate-500">IP Address</p>
                   <p className="mt-2 break-words text-sm font-semibold text-slate-950">
@@ -495,12 +495,6 @@ export const AttendanceHistory = () => {
                   <p className="text-xs font-bold uppercase text-slate-500">Region IP</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">
                     {selectedCheckInAccessLog?.ip_region || 'Tidak tersedia'}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-bold uppercase text-slate-500">Developer Mode Status</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-950">
-                    {selectedCheckInAccessLog?.developer_mode_active ? 'Aktif' : 'Tidak Aktif'}
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 p-4">

@@ -48,13 +48,10 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     ipAddress?: string
-    developerModeActive?: boolean
   }
   const ipAddress = body.ipAddress?.trim() || getForwardedIp(request)
-  const developerModeActive = body.developerModeActive === true
   const ipRegion = await lookupIpRegion(ipAddress)
   const anomaly = evaluateAttendanceAnomaly({
-    developerModeActive,
     ipRegion: ipRegion.region,
     countryCode: ipRegion.countryCode,
   })
@@ -62,7 +59,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ipAddress: ipRegion.ipAddress,
     ipRegion: ipRegion.region,
-    developerModeActive,
     ...anomaly,
   })
 }

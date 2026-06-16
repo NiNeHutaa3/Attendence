@@ -1,7 +1,5 @@
 export type AnomalyReason =
-  | 'Developer Mode Active'
   | 'IP Address Outside Operational Area'
-  | 'Developer Mode Active, IP Outside Operational Area'
 
 export type IpRegionResult = {
   ipAddress: string
@@ -10,7 +8,6 @@ export type IpRegionResult = {
 }
 
 export type AnomalyEvaluationInput = {
-  developerModeActive: boolean
   ipRegion?: string | null
   countryCode?: string | null
 }
@@ -27,24 +24,6 @@ const OPERATIONAL_REGION_KEYWORDS = [
 ]
 
 const normalizeRegion = (value?: string | null) => value?.trim().toLowerCase() || ''
-
-export const detectDeveloperModeActive = (): boolean => {
-  if (typeof window === 'undefined') {
-    return false
-  }
-
-  const explicitFlag = (window as any).__DEVELOPER_MODE_ACTIVE__
-  if (typeof explicitFlag === 'boolean') {
-    return explicitFlag
-  }
-
-  const localStorageFlag = window.localStorage.getItem('developerModeActive')
-  if (localStorageFlag === 'true') {
-    return true
-  }
-
-  return navigator.webdriver === true
-}
 
 export const isIpOutsideOperationalArea = (
   region?: string | null,
@@ -66,26 +45,10 @@ export const isIpOutsideOperationalArea = (
 }
 
 export const evaluateAttendanceAnomaly = ({
-  developerModeActive,
   ipRegion,
   countryCode,
 }: AnomalyEvaluationInput): AnomalyEvaluationResult => {
-  const developerModeAnomaly = developerModeActive === true
   const ipAnomaly = isIpOutsideOperationalArea(ipRegion, countryCode)
-
-  if (developerModeAnomaly && ipAnomaly) {
-    return {
-      anomaly_status: true,
-      anomaly_reason: 'Developer Mode Active, IP Outside Operational Area',
-    }
-  }
-
-  if (developerModeAnomaly) {
-    return {
-      anomaly_status: true,
-      anomaly_reason: 'Developer Mode Active',
-    }
-  }
 
   if (ipAnomaly) {
     return {
@@ -164,22 +127,13 @@ export const mergeAnomalyReasons = (
         reasons.add('IP Address Outside Operational Area')
         return
       }
-      if (normalized) {
+      if (normalized === 'IP Address Outside Operational Area') {
         reasons.add(normalized)
       }
     })
   })
 
-  const hasDeveloperMode = reasons.has('Developer Mode Active')
   const hasIpOutside = reasons.has('IP Address Outside Operational Area')
-
-  if (hasDeveloperMode && hasIpOutside) {
-    return 'Developer Mode Active, IP Outside Operational Area'
-  }
-
-  if (hasDeveloperMode) {
-    return 'Developer Mode Active'
-  }
 
   if (hasIpOutside) {
     return 'IP Address Outside Operational Area'

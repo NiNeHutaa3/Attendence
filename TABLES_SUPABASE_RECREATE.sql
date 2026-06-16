@@ -104,7 +104,6 @@ create table if not exists public.access_log (
   ip_address text,
   ip_region text,
   is_vpn boolean not null default false,
-  developer_mode_active boolean not null default false,
   created_at timestamptz not null default now()
 );
 
