@@ -161,41 +161,6 @@ export default function KaryawanDashboard() {
             Lakukan check-in dengan validasi lokasi GPS dan dokumentasi foto untuk memastikan kehadiran tercatat dengan akurat.
           </p>
 
-          {/* STATS */}
-          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-
-            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-              <p className="text-sm text-slate-300">
-                Status
-              </p>
-
-              <p className="mt-2 text-xl font-bold">
-                Ready
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-              <p className="text-sm text-slate-300">
-                Validasi
-              </p>
-
-              <p className="mt-2 text-xl font-bold">
-                GPS + Foto
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-              <p className="text-sm text-slate-300">
-                Area
-              </p>
-
-              <p className="mt-2 text-xl font-bold">
-                Kantor
-              </p>
-            </div>
-
-          </div>
-
         </div>
 
         {/* RIGHT */}
