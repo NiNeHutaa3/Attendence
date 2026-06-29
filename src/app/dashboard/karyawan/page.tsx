@@ -9,7 +9,7 @@ import { CheckInComponent } from '@/components/dashboard/CheckInComponent'
 export default function KaryawanDashboard() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [now, setNow] = useState(() => new Date())
+  const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
     if (!loading && (!user || user.user_metadata?.role !== 'karyawan')) {
@@ -18,6 +18,7 @@ export default function KaryawanDashboard() {
   }, [user, loading, router])
 
   useEffect(() => {
+    setNow(new Date())
     const timer = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(timer)
   }, [])
@@ -63,29 +64,43 @@ export default function KaryawanDashboard() {
     .join('')
     .slice(0, 2)
     .toUpperCase()
+  const currentTime = now
+    ? now.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '--:--'
+  const currentDate = now
+    ? now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : 'Memuat waktu...'
 
   return (
     <div className="app-surface min-h-screen text-slate-900">
 
   {/* HEADER */}
-  <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
-    <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
+  <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+    <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
 
       {/* LEFT */}
       <div className="flex items-center gap-4">
 
-        <div className="brand-gradient flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-md shadow-teal-500/20">
+        <div className="brand-gradient flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-white shadow-md shadow-teal-500/20">
           <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
 
-        <div>
-          <p className="text-sm font-semibold text-slate-900">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900">
             Web Absensi
           </p>
 
-          <p className="text-xs text-slate-500">
+          <p className="truncate text-xs text-slate-500">
             Portal Karyawan
           </p>
         </div>
@@ -93,7 +108,7 @@ export default function KaryawanDashboard() {
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
 
         <div className="hidden text-right sm:block">
           <p className="text-sm font-semibold text-slate-900">
@@ -112,7 +127,7 @@ export default function KaryawanDashboard() {
         <button
           type="button"
           onClick={handleLogout}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 sm:px-4"
+          className="min-h-10 flex-shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 sm:px-4"
         >
           Logout
         </button>
@@ -125,11 +140,9 @@ export default function KaryawanDashboard() {
   <main className="mx-auto max-w-7xl px-4 py-4 lg:px-8 lg:py-8">
 
     {/* HERO */}
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 p-5 text-white shadow-xl shadow-slate-300/60 lg:p-8">
+    <section className="relative overflow-hidden rounded-3xl bg-slate-950 p-5 text-white shadow-xl shadow-slate-300/60 lg:p-8">
 
-      {/* BACKGROUND GLOW */}
-      <div className="dashboard-grid absolute inset-0 opacity-30" />
-      <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-teal-400/20 blur-3xl" />
+      <div className="dashboard-grid absolute inset-0 opacity-25" />
 
       <div className="relative z-10 grid gap-5 lg:gap-10 lg:grid-cols-[1fr_320px]">
 
@@ -140,7 +153,7 @@ export default function KaryawanDashboard() {
             Dashboard Hari Ini
           </p>
 
-          <h1 className="mt-3 text-2xl font-bold leading-tight text-white lg:text-5xl">
+          <h1 className="mt-3 text-2xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">
             Selamat datang, {userName}
           </h1>
 
@@ -149,9 +162,9 @@ export default function KaryawanDashboard() {
           </p>
 
           {/* STATS */}
-          <div className="mt-8 hidden grid-cols-1 gap-4 sm:grid-cols-3 lg:grid">
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
 
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur">
               <p className="text-sm text-slate-300">
                 Status
               </p>
@@ -161,7 +174,7 @@ export default function KaryawanDashboard() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur">
               <p className="text-sm text-slate-300">
                 Validasi
               </p>
@@ -171,7 +184,7 @@ export default function KaryawanDashboard() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur">
               <p className="text-sm text-slate-300">
                 Area
               </p>
@@ -186,29 +199,21 @@ export default function KaryawanDashboard() {
         </div>
 
         {/* RIGHT */}
-        <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur lg:rounded-3xl lg:p-6">
+        <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur lg:p-6">
 
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-200 lg:text-sm">
             Waktu Sekarang
           </p>
 
           <p className="mt-3 text-4xl font-bold tracking-tight lg:mt-5 lg:text-5xl">
-            {now.toLocaleTimeString('id-ID', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {currentTime}
           </p>
 
           <p className="mt-2 text-sm leading-6 text-slate-300 lg:mt-4">
-            {now.toLocaleDateString('id-ID', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
+            {currentDate}
           </p>
 
-          <div className="mt-8 hidden rounded-2xl bg-emerald-400/10 p-4 ring-1 ring-emerald-400/20 lg:block">
+          <div className="mt-6 rounded-xl bg-emerald-400/10 p-4 ring-1 ring-emerald-400/20">
 
             <p className="text-sm font-semibold text-emerald-300">
               Ketentuan
@@ -230,7 +235,7 @@ export default function KaryawanDashboard() {
     <div className="mt-5 grid gap-8 lg:mt-8 xl:grid-cols-[minmax(0,1fr)_340px]">
 
       {/* MAIN ACTION */}
-      <div className="lg:rounded-3xl lg:border lg:border-slate-200 lg:bg-white lg:p-6 lg:shadow-sm">
+      <div className="lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:p-6 lg:shadow-sm">
         <CheckInComponent />
       </div>
 
@@ -238,7 +243,7 @@ export default function KaryawanDashboard() {
       <aside className="hidden space-y-6 xl:block">
 
         {/* FLOW */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
 
           <p className="text-lg font-semibold text-slate-900">
             Alur Absensi
@@ -255,7 +260,7 @@ export default function KaryawanDashboard() {
 
               <div key={number} className="flex items-start gap-4">
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-sm font-bold text-teal-700">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-teal-50 text-sm font-bold text-teal-700">
                   {number}
                 </div>
 
@@ -271,6 +276,25 @@ export default function KaryawanDashboard() {
 
           </div>
 
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-lg font-semibold text-slate-900">
+            Kesiapan Perangkat
+          </p>
+
+          <div className="mt-5 space-y-3">
+            {[
+              ['GPS aktif', 'Izinkan lokasi akurasi tinggi'],
+              ['Kamera siap', 'Pastikan wajah terlihat jelas'],
+              ['Koneksi stabil', 'Jangan tutup halaman saat mengirim'],
+            ].map(([title, description]) => (
+              <div key={title} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900">{title}</p>
+                <p className="mt-1 text-sm leading-5 text-slate-500">{description}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
       </aside>

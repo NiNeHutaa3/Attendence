@@ -53,6 +53,48 @@ const DEFAULT_GEOFENCE: ActiveGeofence = {
   radius: GEOFENCE_RADIUS,
 }
 
+const getGpsQualityLabel = (accuracy?: number | null) => {
+  if (!Number.isFinite(Number(accuracy))) {
+    return 'Belum dicek'
+  }
+
+  if (Number(accuracy) <= 10) {
+    return 'Sangat baik'
+  }
+
+  if (Number(accuracy) <= 35) {
+    return 'Stabil'
+  }
+
+  if (Number(accuracy) <= 75) {
+    return 'Cukup'
+  }
+
+  return 'Lemah'
+}
+
+const getGpsQualityTone = (verification: VerifiedLocationResult | null) => {
+  if (!verification) {
+    return 'border-slate-200 bg-white text-slate-600'
+  }
+
+  if (verification.isValid) {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-800'
+  }
+
+  if (!verification.isWithinGeofence) {
+    return 'border-rose-200 bg-rose-50 text-rose-800'
+  }
+
+  return 'border-amber-200 bg-amber-50 text-amber-900'
+}
+
+const formatMeters = (value: number | null | undefined, fractionDigits = 1) =>
+  Number.isFinite(Number(value)) ? `${Number(value).toFixed(fractionDigits)} m` : '--'
+
+const formatCoordinate = (value: number | null | undefined) =>
+  Number.isFinite(Number(value)) ? Number(value).toFixed(6) : '--'
+
 type CheckInState = 'idle' | 'getting-location' | 'capturing-photo' | 'uploading' | 'success' | 'error'
 type AttendanceAction = 'checkin' | 'checkout'
 
@@ -702,6 +744,38 @@ export const CheckInComponent = () => {
     todayAttendance && !isCheckOutFlow ? 4 : photoBlob ? 4 : cameraActive ? 3 : userLocation ? 2 : 1
   const stepItems = ['Lokasi', 'Validasi', 'Foto', 'Kirim']
   const isOutsideGeofence = locationVerification?.isWithinGeofence === false
+  const gpsQualityLabel = getGpsQualityLabel(locationVerification?.accuracy)
+  const gpsQualityTone = getGpsQualityTone(locationVerification)
+  const latestLocationTimestamp = locationVerification?.samples.length
+    ? Math.max(...locationVerification.samples.map((sample) => sample.timestamp))
+    : null
+  const verifiedAt = latestLocationTimestamp
+    ? new Date(latestLocationTimestamp).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    : null
+  const evidenceChecks = [
+    {
+      label: 'Lokasi GPS',
+      done: Boolean(userLocation && locationVerification),
+      value: locationVerification ? gpsQualityLabel : 'Menunggu',
+    },
+    {
+      label: 'Radius kantor',
+      done: isValid === true,
+      value:
+        distance !== null
+          ? `${formatMeters(distance)} / ${formatMeters(activeGeofence.radius, 0)}`
+          : 'Belum dicek',
+    },
+    {
+      label: 'Foto bukti',
+      done: Boolean(photoBlob && photoBlob.size > 0),
+      value: photoBlob?.size ? 'Siap dikirim' : 'Belum ada',
+    },
+  ]
   const invalidLocationTitle = isOutsideGeofence
     ? 'Lokasi di luar radius kantor'
     : 'Kualitas GPS perlu diperiksa'
@@ -718,7 +792,9 @@ export const CheckInComponent = () => {
 
   return (
     <section className="space-y-4 lg:space-y-5">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="h-1 bg-gradient-to-r from-teal-500 via-emerald-400 to-sky-400" />
+        <div className="p-4 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">
@@ -729,6 +805,9 @@ export const CheckInComponent = () => {
                 ? 'Absensi hari ini tercatat'
                 : `Mulai ${actionLabel}`}
             </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Validasi dibuat bertahap: lokasi, kualitas GPS, foto, lalu pengiriman data.
+            </p>
           </div>
 
           <div className="hidden grid-cols-4 gap-2 lg:grid">
@@ -754,6 +833,7 @@ export const CheckInComponent = () => {
               )
             })}
           </div>
+        </div>
         </div>
       </div>
 
@@ -832,28 +912,19 @@ export const CheckInComponent = () => {
               <p className="text-sm leading-6 text-slate-500">
                 Jika foto sudah jelas, kirim {actionLabel}. Jika belum, ambil ulang foto.
               </p>
-              <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-slate-600">GPS valid</span>
-                  <span className={isValid ? 'font-bold text-emerald-700' : 'font-bold text-rose-700'}>
-                    {isValid ? 'Siap' : 'Belum'}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="font-semibold text-slate-600">Akurasi</span>
-                  <span className="font-bold text-slate-950">
-                    {locationVerification ? `${locationVerification.accuracy.toFixed(1)} m` : '--'}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="font-semibold text-slate-600">Toleransi radius</span>
-                  <span className="font-bold text-slate-950">+/-10 m</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="font-semibold text-slate-600">Foto</span>
-                  <span className={photoBlob?.size ? 'font-bold text-emerald-700' : 'font-bold text-rose-700'}>
-                    {photoBlob?.size ? 'Tersedia' : 'Belum'}
-                  </span>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+                  Checklist bukti
+                </p>
+                <div className="space-y-2">
+                  {evidenceChecks.map((item) => (
+                    <div key={item.label} className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-slate-600">{item.label}</span>
+                      <span className={item.done ? 'font-bold text-emerald-700' : 'font-bold text-rose-700'}>
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
               <button
@@ -922,15 +993,23 @@ export const CheckInComponent = () => {
         <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="p-5 sm:p-8">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100 lg:mb-6 lg:h-14 lg:w-14">
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100 lg:h-14 lg:w-14">
+                  <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M12 11c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zm0 10s7-4.438 7-11a7 7 0 10-14 0c0 6.562 7 11 7 11z"
                   />
-                </svg>
+                  </svg>
+                </div>
+                <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${gpsQualityTone}`}>
+                  <span className="block text-xs uppercase tracking-[0.12em] opacity-75">
+                    Kualitas GPS
+                  </span>
+                  <span className="mt-1 block text-base">{gpsQualityLabel}</span>
+                </div>
               </div>
 
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400 lg:text-sm">
@@ -1130,6 +1209,35 @@ export const CheckInComponent = () => {
 </button>
                 )}
               </div>
+
+              {locationVerification && (
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                      Akurasi
+                    </p>
+                    <p className="mt-2 text-lg font-bold text-slate-950">
+                      {formatMeters(locationVerification.accuracy)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                      Sampel GPS
+                    </p>
+                    <p className="mt-2 text-lg font-bold text-slate-950">
+                      {locationVerification.samples.length} titik
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                      Diverifikasi
+                    </p>
+                    <p className="mt-2 text-lg font-bold text-slate-950">
+                      {verifiedAt || '--'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {userLocation && (
@@ -1185,17 +1293,17 @@ export const CheckInComponent = () => {
                 Jarak ke {activeGeofence.locationName}
               </p>
               <p className="mt-2 text-3xl font-bold text-slate-950">
-                {distance ? `${distance.toFixed(1)} m` : '--'}
+                {formatMeters(distance)}
               </p>
               <p className="mt-2 text-sm text-slate-500">
-                Radius kantor: {activeGeofence.radius} m
+                Radius kantor: {formatMeters(activeGeofence.radius, 0)}
               </p>
               {locationVerification && (
                 <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-center justify-between gap-3 text-sm">
                     <span className="font-semibold text-slate-600">Akurasi GPS</span>
                     <span className="font-bold text-slate-950">
-                      {locationVerification.accuracy.toFixed(1)} m
+                      {formatMeters(locationVerification.accuracy)}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-3 text-sm">
@@ -1215,6 +1323,32 @@ export const CheckInComponent = () => {
                   )}
                 </div>
               )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+                Detail koordinat
+              </p>
+              <div className="mt-4 space-y-3 text-sm">
+                <div>
+                  <p className="font-semibold text-slate-600">Lokasi kamu</p>
+                  <p className="mt-1 font-mono text-xs text-slate-500">
+                    {userLocation
+                      ? `${formatCoordinate(userLocation.lat)}, ${formatCoordinate(userLocation.lng)}`
+                      : '--'}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-600">Pusat kantor</p>
+                  <p className="mt-1 font-mono text-xs text-slate-500">
+                    {formatCoordinate(activeGeofence.lat)}, {formatCoordinate(activeGeofence.lng)}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-600">Verifikasi terakhir</p>
+                  <p className="mt-1 text-slate-500">{verifiedAt || 'Belum ada'}</p>
+                </div>
+              </div>
             </div>
           </aside>
         </div>
