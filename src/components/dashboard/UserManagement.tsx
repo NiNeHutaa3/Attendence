@@ -73,6 +73,32 @@ const getMonthRange = (monthValue: string) => {
 
 const formatPercent = (value: number) => `${Math.round(value)}%`
 
+const getUserErrorHelp = (message: string) => {
+  const normalized = message.toLowerCase()
+
+  if (normalized.includes('already') || normalized.includes('terdaftar')) {
+    return 'Email sudah dipakai akun lain. Gunakan email berbeda atau edit akun yang sudah ada.'
+  }
+
+  if (normalized.includes('password')) {
+    return 'Pastikan password minimal 6 karakter dan tidak dikosongkan saat membuat akun baru.'
+  }
+
+  if (normalized.includes('geofence') || normalized.includes('lokasi')) {
+    return 'Untuk role karyawan, lokasi kerja dan radius geofence wajib dipilih.'
+  }
+
+  if (normalized.includes('session') || normalized.includes('unauthorized') || normalized.includes('admin')) {
+    return 'Sesi admin tidak valid atau sudah habis. Login ulang sebagai admin, lalu coba lagi.'
+  }
+
+  if (normalized.includes('environment') || normalized.includes('supabase')) {
+    return 'Konfigurasi Supabase belum lengkap. Periksa env Supabase, termasuk service role key untuk admin.'
+  }
+
+  return 'Periksa kembali data yang diisi. Jika semua sudah benar, coba refresh halaman dan ulangi proses.'
+}
+
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([])
   const [geofences, setGeofences] = useState<Geofence[]>([])
@@ -362,6 +388,7 @@ export const UserManagement = () => {
   const adminCount = users.filter((user) => user.role === 'admin').length
   const employeeCount = users.filter((user) => user.role === 'karyawan').length
   const assignedGeofenceCount = users.filter((user) => Boolean(user.geofence)).length
+  const errorHelp = error ? getUserErrorHelp(error) : null
   const detailStats = useMemo(() => {
     const total = detailRecords.length
     const valid = detailRecords.filter((record) => record.status === 'valid').length
@@ -442,8 +469,26 @@ export const UserManagement = () => {
         </div>
       )}
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
-          {error}
+        <div className="panel-enter rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-rose-700">
+                Gagal menyimpan pengguna
+              </p>
+              <p className="mt-2 text-sm font-semibold leading-6">{error}</p>
+              {errorHelp && <p className="mt-2 text-sm leading-6 text-rose-800">{errorHelp}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-700 transition hover:bg-rose-100"
+              aria-label="Tutup pesan error"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 

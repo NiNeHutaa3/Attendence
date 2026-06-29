@@ -78,15 +78,21 @@ const getGpsQualityTone = (verification: VerifiedLocationResult | null) => {
     return 'border-slate-200 bg-white text-slate-600'
   }
 
-  if (verification.isValid) {
+  if (verification.isReliable) {
     return 'border-emerald-200 bg-emerald-50 text-emerald-800'
   }
 
-  if (!verification.isWithinGeofence) {
-    return 'border-rose-200 bg-rose-50 text-rose-800'
+  return 'border-amber-200 bg-amber-50 text-amber-900'
+}
+
+const getRadiusTone = (verification: VerifiedLocationResult | null) => {
+  if (!verification) {
+    return 'border-slate-200 bg-white text-slate-600'
   }
 
-  return 'border-amber-200 bg-amber-50 text-amber-900'
+  return verification.isWithinGeofence
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+    : 'border-rose-200 bg-rose-50 text-rose-800'
 }
 
 const formatMeters = (value: number | null | undefined, fractionDigits = 1) =>
@@ -746,6 +752,12 @@ export const CheckInComponent = () => {
   const isOutsideGeofence = locationVerification?.isWithinGeofence === false
   const gpsQualityLabel = getGpsQualityLabel(locationVerification?.accuracy)
   const gpsQualityTone = getGpsQualityTone(locationVerification)
+  const radiusTone = getRadiusTone(locationVerification)
+  const radiusStatusLabel = !locationVerification
+    ? 'Belum dicek'
+    : locationVerification.isWithinGeofence
+      ? 'Dalam radius'
+      : 'Di luar radius'
   const latestLocationTimestamp = locationVerification?.samples.length
     ? Math.max(...locationVerification.samples.map((sample) => sample.timestamp))
     : null
@@ -777,10 +789,10 @@ export const CheckInComponent = () => {
     },
   ]
   const invalidLocationTitle = isOutsideGeofence
-    ? 'Lokasi di luar radius kantor'
+    ? 'GPS stabil, tetapi posisi di luar area kantor'
     : 'Kualitas GPS perlu diperiksa'
   const invalidLocationMessage = isOutsideGeofence
-    ? `Posisi kamu berada di luar radius ${activeGeofence.radius} m dari ${activeGeofence.locationName}. Silakan mendekat ke area kantor dan ambil ulang lokasi.`
+    ? `Sinyal GPS sudah terbaca, tetapi jarak kamu ${formatMeters(distance)} dari ${activeGeofence.locationName}. Batas absensi lokasi ini adalah ${formatMeters(activeGeofence.radius, 0)}. Silakan mendekat ke area kantor yang benar, lalu tekan Ambil Ulang Lokasi.`
     : 'Lokasi belum bisa divalidasi karena sinyal GPS belum stabil. Pastikan GPS aktif, izinkan akurasi tinggi, tunggu beberapa detik, lalu coba lagi.'
   const canSubmitAttendance =
     Boolean(user) &&
@@ -1004,11 +1016,19 @@ export const CheckInComponent = () => {
                   />
                   </svg>
                 </div>
+                <div className="grid gap-3 sm:grid-cols-2">
                 <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${gpsQualityTone}`}>
                   <span className="block text-xs uppercase tracking-[0.12em] opacity-75">
                     Kualitas GPS
                   </span>
                   <span className="mt-1 block text-base">{gpsQualityLabel}</span>
+                </div>
+                <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${radiusTone}`}>
+                  <span className="block text-xs uppercase tracking-[0.12em] opacity-75">
+                    Status Radius
+                  </span>
+                  <span className="mt-1 block text-base">{radiusStatusLabel}</span>
+                </div>
                 </div>
               </div>
 
@@ -1029,6 +1049,39 @@ export const CheckInComponent = () => {
                     ? 'Posisi kamu berada di area yang diizinkan. Lanjutkan dengan mengambil foto kehadiran.'
                     : invalidLocationMessage}
               </p>
+
+              {locationVerification && !locationVerification.isValid && (
+                <div
+                  className={`mt-5 rounded-xl border p-4 text-sm ${
+                    isOutsideGeofence
+                      ? 'border-rose-200 bg-rose-50 text-rose-900'
+                      : 'border-amber-200 bg-amber-50 text-amber-950'
+                  }`}
+                >
+                  <p className="font-bold">
+                    {isOutsideGeofence ? 'Yang perlu diperbaiki: posisi' : 'Yang perlu diperbaiki: kualitas GPS'}
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg bg-white/70 p-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] opacity-70">Jarak saat ini</p>
+                      <p className="mt-1 font-bold">{formatMeters(distance)}</p>
+                    </div>
+                    <div className="rounded-lg bg-white/70 p-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] opacity-70">Batas kantor</p>
+                      <p className="mt-1 font-bold">{formatMeters(activeGeofence.radius, 0)}</p>
+                    </div>
+                  </div>
+                  {locationVerification.issues.length > 0 && (
+                    <ul className="mt-3 space-y-1">
+                      {locationVerification.issues.slice(0, 3).map((issue, idx) => (
+                        <li key={`${issue}-${idx}`} className="leading-6">
+                          {issue}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 {!userLocation ? (
