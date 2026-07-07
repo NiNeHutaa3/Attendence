@@ -7,7 +7,14 @@ export default function LoginPage() {
         <div className="mb-6">
           <div className="mb-4 flex items-center gap-3">
             <div className="brand-gradient flex h-11 w-11 items-center justify-center rounded-xl text-base font-bold text-white shadow-lg shadow-teal-700/15">
-              A
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
             </div>
             <div>
               <h1 className="text-lg font-semibold text-slate-950">Web Absensi</h1>
