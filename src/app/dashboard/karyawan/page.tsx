@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { supabase } from '@/lib/supabase'
+import { signOutLocal } from '@/lib/supabase'
 import { CheckInComponent } from '@/components/dashboard/CheckInComponent'
 
 export default function KaryawanDashboard() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const [now, setNow] = useState<Date | null>(null)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
     if (!loading && (!user || user.user_metadata?.role !== 'karyawan')) {
@@ -24,14 +25,18 @@ export default function KaryawanDashboard() {
   }, [])
 
   const handleLogout = async () => {
+    if (loggingOut) {
+      return
+    }
+
+    setLoggingOut(true)
+
     try {
-      await supabase.auth.signOut({ scope: 'global' })
+      await signOutLocal()
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
-      router.replace('/login')
-      router.refresh()
-      window.location.href = '/login'
+      window.location.replace('/login')
     }
   }
 
@@ -106,9 +111,10 @@ export default function KaryawanDashboard() {
         <button
           type="button"
           onClick={handleLogout}
+          disabled={loggingOut}
           className="min-h-10 flex-shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 sm:px-4"
         >
-          Logout
+          {loggingOut ? 'Keluar...' : 'Logout'}
         </button>
       </div>
     </div>

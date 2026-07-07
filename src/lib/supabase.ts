@@ -40,6 +40,23 @@ export const signOut = async () => {
   return await supabase.auth.signOut()
 }
 
+export const signOutLocal = async (timeoutMs = 2500) => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    await Promise.race([
+      supabase.auth.signOut({ scope: 'local' }),
+      new Promise((resolve) => {
+        timeoutId = setTimeout(resolve, timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+  }
+}
+
 export const getCurrentUser = async () => {
   const {
     data: { user },

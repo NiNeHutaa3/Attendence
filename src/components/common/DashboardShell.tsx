@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { signOutLocal } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 
 export type DashboardNavItem = {
@@ -33,7 +32,6 @@ export const DashboardShell = ({
   children,
   sidebarFooter,
 }: DashboardShellProps) => {
-  const router = useRouter()
   const { user } = useAuth()
   const [loggingOut, setLoggingOut] = useState(false)
   const userName = user?.user_metadata?.name || 'User'
@@ -45,15 +43,18 @@ export const DashboardShell = ({
     .toUpperCase()
 
   const handleLogout = async () => {
+    if (loggingOut) {
+      return
+    }
+
+    setLoggingOut(true)
+
     try {
-      setLoggingOut(true)
-      await supabase.auth.signOut({ scope: 'global' })
-      router.replace('/login')
-      router.refresh()
+      await signOutLocal()
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
-      setLoggingOut(false)
+      window.location.replace('/login')
     }
   }
 
