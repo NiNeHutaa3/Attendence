@@ -408,16 +408,10 @@ export const UserManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-6 border-b border-slate-200 bg-slate-50 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70">
+        <div className="grid gap-6 border-b border-slate-200 bg-slate-50/80 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700">
-              Directory
-            </p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-950">Kelola User</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-              Tambahkan admin atau karyawan, atur geofence, dan jaga akses dashboard tetap rapi.
-            </p>
+            <h2 className="text-xl font-semibold text-slate-950">Pengguna</h2>
           </div>
           <button
             type="button"
@@ -444,21 +438,21 @@ export const UserManagement = () => {
           <div className="p-5">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">Admin</p>
             <p className="mt-2 text-3xl font-bold text-blue-950">{adminCount}</p>
-            <p className="mt-1 text-sm text-slate-500">operator dashboard</p>
+            <p className="mt-1 text-sm text-slate-500">akun admin</p>
           </div>
           <div className="p-5">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-600">
               Karyawan
             </p>
             <p className="mt-2 text-3xl font-bold text-emerald-950">{employeeCount}</p>
-            <p className="mt-1 text-sm text-slate-500">pengguna absensi</p>
+            <p className="mt-1 text-sm text-slate-500">akun karyawan</p>
           </div>
           <div className="p-5">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet-600">
               Geofence
             </p>
             <p className="mt-2 text-3xl font-bold text-violet-950">{assignedGeofenceCount}</p>
-            <p className="mt-1 text-sm text-slate-500">akun sudah punya lokasi</p>
+            <p className="mt-1 text-sm text-slate-500">lokasi aktif</p>
           </div>
         </div>
       </div>
@@ -493,8 +487,8 @@ export const UserManagement = () => {
       )}
 
       {selectedUser && (
-        <div className="panel-enter overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="grid gap-4 border-b border-slate-100 bg-slate-50 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="panel-enter overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70">
+          <div className="grid gap-4 border-b border-slate-100 bg-slate-50/80 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
             <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-teal-50 text-lg font-bold text-teal-800 ring-1 ring-teal-100">
                 {getInitials(selectedDisplayName, selectedUser.email)}
@@ -703,16 +697,11 @@ export const UserManagement = () => {
       )}
 
       {showForm && (
-        <div className="panel-enter rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="panel-enter rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70">
           <div className="border-b border-slate-100 px-5 py-4">
             <h3 className="text-lg font-bold text-slate-950">
               {editingUserId ? 'Edit Data Pengguna' : 'Tambah Pengguna Baru'}
             </h3>
-            <p className="mt-1 text-sm text-slate-500">
-              {editingUserId
-                ? 'Perubahan akan disinkronkan ke Supabase Auth dan profil aplikasi.'
-                : 'Akun dibuat di Supabase Auth dan langsung disinkronkan ke profil aplikasi.'}
-            </p>
           </div>
 
           <form onSubmit={handleSubmitUser} className="space-y-5 p-5">
@@ -841,7 +830,7 @@ export const UserManagement = () => {
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/70">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_12rem]">
           <div>
             <label htmlFor="searchUser" className="sr-only">
@@ -874,7 +863,7 @@ export const UserManagement = () => {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70">
         <div className="border-b border-slate-200 px-5 py-4">
           <h3 className="text-base font-bold text-slate-950">Daftar Pengguna</h3>
           <p className="mt-1 text-sm text-slate-500">

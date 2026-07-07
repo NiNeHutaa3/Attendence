@@ -47,7 +47,6 @@ export default function AdminDashboard() {
     {
       id: 'overview',
       label: 'Ringkasan',
-      description: 'Statistik dan validasi hari ini',
       icon: (
         <svg
           className="w-5 h-5"
@@ -67,7 +66,6 @@ export default function AdminDashboard() {
     {
       id: 'users',
       label: 'Pengguna',
-      description: 'Kelola akses karyawan',
       icon: (
         <svg
           className="w-5 h-5"
@@ -87,7 +85,6 @@ export default function AdminDashboard() {
     {
       id: 'attendance',
       label: 'Riwayat',
-      description: 'Periksa catatan kehadiran',
       icon: (
         <svg
           className="w-5 h-5"
@@ -109,18 +106,18 @@ export default function AdminDashboard() {
   const pageCopy = {
     overview: {
       title: 'Ringkasan Kehadiran',
-      subtitle: 'Pantau kehadiran harian, jumlah karyawan, dan hasil validasi lokasi dari satu dashboard.',
-      eyebrow: 'Dashboard Admin',
+      subtitle: 'Data kehadiran hari ini.',
+      eyebrow: 'Admin',
     },
     users: {
-      title: 'Direktori Pengguna',
-      subtitle: 'Buat akun karyawan, periksa role, dan kelola akses dashboard dengan lebih mudah.',
-      eyebrow: 'Kelola Pengguna',
+      title: 'Pengguna',
+      subtitle: 'Kelola akun dan lokasi absensi.',
+      eyebrow: 'Admin',
     },
     attendance: {
       title: 'Riwayat Kehadiran',
-      subtitle: 'Filter catatan berdasarkan tanggal atau karyawan dan temukan data yang perlu diperiksa.',
-      eyebrow: 'Catatan Harian',
+      subtitle: 'Cari dan unduh catatan absensi.',
+      eyebrow: 'Admin',
     },
   }[activeTab]
 

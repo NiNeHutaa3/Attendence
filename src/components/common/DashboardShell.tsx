@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 export type DashboardNavItem = {
   id: string
   label: string
-  description: string
+  description?: string
   icon: ReactNode
 }
 
@@ -59,10 +59,10 @@ export const DashboardShell = ({
 
   return (
     <div className="app-surface min-h-screen text-slate-800">
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 border-r border-slate-200/80 bg-white/95 lg:flex lg:flex-col">
-        <div className="flex-shrink-0 border-b border-slate-100 px-6 py-6">
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 border-r border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/40 lg:flex lg:flex-col">
+        <div className="flex-shrink-0 border-b border-slate-100 px-5 py-5">
           <div className="flex items-center gap-3">
-            <div className="brand-gradient flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-lg shadow-teal-500/25">
+            <div className="brand-gradient flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-lg shadow-teal-700/15">
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -74,15 +74,12 @@ export const DashboardShell = ({
             </div>
             <div>
               <p className="text-lg font-semibold tracking-tight text-slate-950">Web Absensi</p>
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-                Attendance
-              </p>
             </div>
           </div>
         </div>
 
         {navItems.length > 0 && (
-          <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-6">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
             {navItems.map((item) => {
               const isActive = activeItem === item.id
 
@@ -91,14 +88,14 @@ export const DashboardShell = ({
                   key={item.id}
                   type="button"
                   onClick={() => onNavChange?.(item.id)}
-                  className={`group flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
                     isActive
-                      ? 'brand-gradient text-white shadow-lg shadow-teal-500/20'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                      ? 'brand-gradient text-white shadow-lg shadow-teal-700/15'
+                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-950'
                   }`}
                 >
                   <span
-                    className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${
+                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${
                       isActive ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'
                     }`}
                   >
@@ -106,13 +103,6 @@ export const DashboardShell = ({
                   </span>
                   <span>
                     <span className="block text-sm font-semibold">{item.label}</span>
-                    <span
-                      className={`mt-0.5 block text-xs leading-5 ${
-                        isActive ? 'text-teal-50' : 'text-slate-500'
-                      }`}
-                    >
-                      {item.description}
-                    </span>
                   </span>
                 </button>
               )
@@ -120,12 +110,12 @@ export const DashboardShell = ({
           </nav>
         )}
 
-        <div className="flex-shrink-0 space-y-4 border-t border-slate-100 bg-white p-4">
+        <div className="flex-shrink-0 space-y-4 border-t border-slate-100 bg-white p-3">
           {sidebarFooter}
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
                 {initials || 'U'}
               </div>
               <div className="min-w-0">
@@ -145,11 +135,11 @@ export const DashboardShell = ({
         </div>
       </aside>
 
-      <div className="min-w-0 lg:pl-72">
-        <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-xl lg:hidden">
+      <div className="min-w-0 lg:pl-64">
+        <header className="sticky top-0 z-40 border-b border-slate-200 bg-white lg:hidden">
           <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="brand-gradient flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-lg shadow-teal-500/25">
+              <div className="brand-gradient flex h-10 w-10 items-center justify-center rounded-xl text-white">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -176,7 +166,7 @@ export const DashboardShell = ({
         </header>
 
         {navItems.length > 0 && (
-          <div className="sticky top-16 z-30 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur-xl lg:hidden">
+          <div className="sticky top-16 z-30 border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
             <div className="no-scrollbar flex gap-2 overflow-x-auto">
               {navItems.map((item) => (
                 <button
@@ -184,9 +174,7 @@ export const DashboardShell = ({
                   type="button"
                   onClick={() => onNavChange?.(item.id)}
                   className={`flex min-w-max items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
-                    activeItem === item.id
-                      ? 'brand-gradient text-white shadow-lg shadow-teal-500/20'
-                      : 'bg-slate-100 text-slate-600'
+                    activeItem === item.id ? 'brand-gradient text-white' : 'bg-slate-100 text-slate-600'
                   }`}
                 >
                   {item.icon}
@@ -197,24 +185,23 @@ export const DashboardShell = ({
           </div>
         )}
 
-        <main className="px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-          <section className="relative mb-6 overflow-hidden rounded-3xl bg-slate-900 text-white shadow-xl shadow-slate-300/50 lg:mb-8">
-            <div className="dashboard-grid absolute inset-0 opacity-40" />
-            <div className="grid gap-5 p-5 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-end">
-              <div className="relative">
-                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-teal-300">
+        <main className="px-4 py-5 sm:px-6 lg:px-8">
+          <section className="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 px-5 py-4 shadow-sm shadow-slate-200/70">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                   {eyebrow}
                 </p>
-                <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-4xl">
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
                   {title}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">{subtitle}</p>
+                {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
               </div>
-              <div className="relative min-w-0 rounded-xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-teal-200">
+              <div className="min-w-0 text-sm text-slate-500 lg:text-right">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
                   Login aktif
                 </p>
-                <p className="mt-1 max-w-[18rem] truncate text-sm font-semibold text-white">
+                <p className="mt-1 max-w-[18rem] truncate font-semibold text-slate-700">
                   {user?.email}
                 </p>
               </div>

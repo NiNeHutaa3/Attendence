@@ -788,12 +788,10 @@ export const CheckInComponent = () => {
       value: photoBlob?.size ? 'Siap dikirim' : 'Belum ada',
     },
   ]
-  const invalidLocationTitle = isOutsideGeofence
-    ? 'GPS stabil, tetapi posisi di luar area kantor'
-    : 'Kualitas GPS perlu diperiksa'
+  const invalidLocationTitle = isOutsideGeofence ? 'Di luar area kantor' : 'GPS belum stabil'
   const invalidLocationMessage = isOutsideGeofence
-    ? `Sinyal GPS sudah terbaca, tetapi jarak kamu ${formatMeters(distance)} dari ${activeGeofence.locationName}. Batas absensi lokasi ini adalah ${formatMeters(activeGeofence.radius, 0)}. Silakan mendekat ke area kantor yang benar, lalu tekan Ambil Ulang Lokasi.`
-    : 'Lokasi belum bisa divalidasi karena sinyal GPS belum stabil. Pastikan GPS aktif, izinkan akurasi tinggi, tunggu beberapa detik, lalu coba lagi.'
+    ? `Jarak saat ini ${formatMeters(distance)}. Batas lokasi ${formatMeters(activeGeofence.radius, 0)}.`
+    : 'Tunggu beberapa detik, lalu ambil ulang lokasi.'
   const canSubmitAttendance =
     Boolean(user) &&
     Boolean(userLocation) &&
@@ -804,22 +802,15 @@ export const CheckInComponent = () => {
 
   return (
     <section className="space-y-4 lg:space-y-5">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="h-1 bg-gradient-to-r from-teal-500 via-emerald-400 to-sky-400" />
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70">
         <div className="p-4 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">
-              Proses Absensi
-            </p>
-            <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-950 lg:text-2xl">
+            <h2 className="text-xl font-semibold tracking-tight text-slate-950">
               {todayAttendance && !isCheckOutFlow
                 ? 'Absensi hari ini tercatat'
                 : `Mulai ${actionLabel}`}
             </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              Validasi dibuat bertahap: lokasi, kualitas GPS, foto, lalu pengiriman data.
-            </p>
           </div>
 
           <div className="hidden grid-cols-4 gap-2 lg:grid">
@@ -831,7 +822,7 @@ export const CheckInComponent = () => {
               return (
                 <div
                   key={item}
-                  className={`min-w-[5.25rem] rounded-lg border px-3 py-2 text-center ${
+                  className={`min-w-[5.25rem] rounded-xl border px-3 py-2 text-center ${
                     done
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                       : active
@@ -858,7 +849,7 @@ export const CheckInComponent = () => {
       )}
 
       {todayAttendance && !isCheckOutFlow ? (
-        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm shadow-emerald-100/70">
           <div className="grid gap-0 lg:grid-cols-[1fr_18rem]">
             <div className="p-5 sm:p-8">
               <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
@@ -868,7 +859,7 @@ export const CheckInComponent = () => {
                 Kamu sudah check-in hari ini
               </h3>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
                     Check-in
                   </p>
@@ -876,7 +867,7 @@ export const CheckInComponent = () => {
                     {new Date(todayAttendance.check_in_time).toLocaleTimeString('id-ID')}
                   </p>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
                     Check-out
                   </p>
@@ -907,7 +898,7 @@ export const CheckInComponent = () => {
           </div>
         </div>
       ) : photoBlob ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70">
           <div className="grid gap-0 lg:grid-cols-[1fr_18rem]">
             <div className="p-5 sm:p-6">
               <p className="mb-3 text-sm font-bold text-slate-700">Preview Foto</p>
@@ -915,7 +906,7 @@ export const CheckInComponent = () => {
                 <img
                   src={photoPreviewUrl}
                   alt="Photo preview"
-                  className="h-80 w-full rounded-lg object-cover lg:h-[24rem]"
+                  className="h-80 w-full rounded-xl object-cover lg:h-[24rem]"
                 />
               )}
             </div>
@@ -924,7 +915,7 @@ export const CheckInComponent = () => {
               <p className="text-sm leading-6 text-slate-500">
                 Jika foto sudah jelas, kirim {actionLabel}. Jika belum, ambil ulang foto.
               </p>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+              <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm">
                 <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
                   Checklist bukti
                 </p>
@@ -977,7 +968,7 @@ export const CheckInComponent = () => {
           </div>
         </div>
       ) : cameraActive ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70">
           <div className="p-5 sm:p-6">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -994,7 +985,7 @@ export const CheckInComponent = () => {
               ref={videoRef}
               autoPlay
               playsInline
-              className="h-80 w-full rounded-lg bg-black object-cover lg:h-[28rem]"
+              className="h-80 w-full rounded-xl bg-black object-cover lg:h-[28rem]"
             />
             <button onClick={takePhoto} className="btn-primary mt-4 w-full" disabled={isBusy}>
               {state === 'capturing-photo' ? 'Mengambil foto...' : 'Ambil Foto'}
@@ -1003,10 +994,10 @@ export const CheckInComponent = () => {
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70">
             <div className="p-5 sm:p-8">
               <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100 lg:h-14 lg:w-14">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-700 ring-1 ring-teal-100">
                   <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -1017,13 +1008,13 @@ export const CheckInComponent = () => {
                   </svg>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${gpsQualityTone}`}>
+                <div className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${gpsQualityTone}`}>
                   <span className="block text-xs uppercase tracking-[0.12em] opacity-75">
                     Kualitas GPS
                   </span>
                   <span className="mt-1 block text-base">{gpsQualityLabel}</span>
                 </div>
-                <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${radiusTone}`}>
+                <div className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${radiusTone}`}>
                   <span className="block text-xs uppercase tracking-[0.12em] opacity-75">
                     Status Radius
                   </span>
@@ -1032,10 +1023,7 @@ export const CheckInComponent = () => {
                 </div>
               </div>
 
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400 lg:text-sm">
-                Langkah berikutnya
-              </p>
-              <h3 className="mt-3 text-2xl font-bold tracking-tight text-slate-950 lg:text-3xl">
+              <h3 className="text-xl font-semibold tracking-tight text-slate-950">
                 {!userLocation
                   ? `Verifikasi lokasi ${actionLabel}`
                   : isValid
@@ -1058,9 +1046,7 @@ export const CheckInComponent = () => {
                       : 'border-amber-200 bg-amber-50 text-amber-950'
                   }`}
                 >
-                  <p className="font-bold">
-                    {isOutsideGeofence ? 'Yang perlu diperbaiki: posisi' : 'Yang perlu diperbaiki: kualitas GPS'}
-                  </p>
+                  <p className="font-bold">{isOutsideGeofence ? 'Posisi' : 'GPS'}</p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <div className="rounded-lg bg-white/70 p-3">
                       <p className="text-xs font-bold uppercase tracking-[0.12em] opacity-70">Jarak saat ini</p>
@@ -1090,7 +1076,7 @@ export const CheckInComponent = () => {
   disabled={isBusy}
   className={`
     group relative flex flex-1 items-center justify-center gap-3
-    overflow-hidden rounded-2xl
+    overflow-hidden rounded-xl
     px-5 py-4
     text-sm font-semibold
     transition-all duration-300
@@ -1098,13 +1084,11 @@ export const CheckInComponent = () => {
     ${
       isBusy
         ? 'cursor-not-allowed bg-slate-200 text-slate-500'
-        : 'bg-gradient-to-r from-teal-700 to-teal-600 text-white shadow-lg shadow-teal-500/20 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-teal-500/30'
+        : 'brand-gradient text-white shadow-lg shadow-teal-700/15 hover:shadow-xl hover:shadow-teal-700/20'
     }
   `}
 >
-
-  {/* ICON */}
-  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15">
     <svg
       className="h-4 w-4"
       fill="none"
@@ -1119,8 +1103,6 @@ export const CheckInComponent = () => {
       />
     </svg>
   </div>
-
-  {/* TEXT */}
   <div className="flex flex-col items-start text-left">
 
     <span className="text-sm font-semibold">
@@ -1135,7 +1117,7 @@ export const CheckInComponent = () => {
         ${isBusy ? 'text-slate-400' : 'text-teal-100'}
       `}
     >
-      Validasi area kantor
+      Area kantor
     </span>
 
   </div>
@@ -1147,23 +1129,19 @@ export const CheckInComponent = () => {
   disabled={isBusy}
   className={`
     group flex flex-1 items-center justify-center gap-3
-    rounded-2xl
-    bg-gradient-to-r from-emerald-600 to-emerald-500
+    rounded-xl
+    bg-emerald-600
     px-5 py-4
     text-white
-    shadow-lg shadow-emerald-500/20
     transition-all duration-300
 
-    hover:-translate-y-0.5
-    hover:shadow-xl hover:shadow-emerald-500/30
+    hover:bg-emerald-700
 
     disabled:cursor-not-allowed
     disabled:opacity-60
   `}
 >
-
-  {/* ICON */}
-  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15">
 
     <svg
       className="h-4 w-4"
@@ -1181,7 +1159,6 @@ export const CheckInComponent = () => {
 
   </div>
 
-  {/* TEXT */}
       <div className="flex flex-col items-start text-left">
 
     <span className="text-sm font-semibold">
@@ -1212,7 +1189,7 @@ export const CheckInComponent = () => {
   disabled={isBusy}
   className={`
     flex flex-1 items-center justify-center gap-3
-    rounded-2xl
+    rounded-xl
     border border-slate-300
     bg-white
     px-5 py-4
@@ -1226,9 +1203,7 @@ export const CheckInComponent = () => {
     disabled:opacity-60
   `}
 >
-
-  {/* ICON */}
-  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100">
+  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
 
     <svg
       className="h-4 w-4"
@@ -1245,8 +1220,6 @@ export const CheckInComponent = () => {
     </svg>
 
   </div>
-
-  {/* TEXT */}
   <div className="flex flex-col items-start text-left">
 
     <span className="text-sm font-semibold">
@@ -1265,7 +1238,7 @@ export const CheckInComponent = () => {
 
               {locationVerification && (
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
                       Akurasi
                     </p>
@@ -1273,7 +1246,7 @@ export const CheckInComponent = () => {
                       {formatMeters(locationVerification.accuracy)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
                       Sampel GPS
                     </p>
@@ -1281,7 +1254,7 @@ export const CheckInComponent = () => {
                       {locationVerification.samples.length} titik
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
                       Diverifikasi
                     </p>
@@ -1308,7 +1281,7 @@ export const CheckInComponent = () => {
 
           <aside className="hidden space-y-5 lg:block">
             <div
-              className={`rounded-2xl border p-5 ${
+              className={`rounded-2xl border p-5 shadow-sm ${
                 userLocation
                   ? isValid
                     ? 'border-emerald-100 bg-emerald-50'
@@ -1334,14 +1307,14 @@ export const CheckInComponent = () => {
                 {!userLocation
                   ? 'Ambil lokasi untuk mulai.'
                   : isValid
-                    ? 'Lokasi lolos validasi radius kantor dan toleransi GPS.'
+                    ? 'Lokasi valid.'
                     : isOutsideGeofence
                       ? `Kamu berada di luar radius ${activeGeofence.radius} m dari area kantor.`
                       : 'Lokasi belum valid karena sinyal GPS belum stabil.'}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/70">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
                 Jarak ke {activeGeofence.locationName}
               </p>
@@ -1352,7 +1325,7 @@ export const CheckInComponent = () => {
                 Radius kantor: {formatMeters(activeGeofence.radius, 0)}
               </p>
               {locationVerification && (
-                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-center justify-between gap-3 text-sm">
                     <span className="font-semibold text-slate-600">Akurasi GPS</span>
                     <span className="font-bold text-slate-950">
@@ -1378,7 +1351,7 @@ export const CheckInComponent = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/70">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
                 Detail koordinat
               </p>

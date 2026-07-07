@@ -136,13 +136,13 @@ export const AdminDashboardStats = () => {
     }
 
     return (
-      <div className="card-base p-6">
+      <div className="card-base p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="mb-2 text-sm font-medium text-slate-500">{label}</p>
-            <p className="text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
+            <p className="text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
           </div>
-          <div className={'flex h-12 w-12 items-center justify-center rounded-xl ring-1 ' + colorMap[color].bg + ' ' + colorMap[color].ring}>
+          <div className={'flex h-11 w-11 items-center justify-center rounded-xl ring-1 ' + colorMap[color].bg + ' ' + colorMap[color].ring}>
             <span className={colorMap[color].text}>{icon}</span>
           </div>
         </div>
@@ -173,7 +173,7 @@ export const AdminDashboardStats = () => {
     <div className="space-y-6">
       {stats.error && <div className="alert-error">{stats.error}</div>}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Karyawan"
           value={stats.totalUsers}
@@ -234,17 +234,11 @@ export const AdminDashboardStats = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_24rem]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/60">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_20rem]">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/70">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-teal-700">
-                Kualitas Validasi
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-950">Ringkasan hari ini</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                Bandingkan data valid dan tidak valid untuk menemukan kendala absensi lebih cepat.
-              </p>
+              <h2 className="text-lg font-semibold text-slate-950">Status hari ini</h2>
             </div>
             <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
               {stats.attendanceToday} catatan
@@ -280,17 +274,10 @@ export const AdminDashboardStats = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-lg shadow-amber-100/50">
-          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-amber-700">
-            Fokus Admin
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">
-            Periksa kendala lebih dulu
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-amber-900/75">
-            Catatan tidak valid biasanya perlu diperiksa: lokasi keliru, akurasi GPS rendah, atau
-            posisi berada di luar radius kantor.
-          </p>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/70">
+          <p className="text-sm font-semibold text-slate-950">Perlu diperiksa</p>
+          <p className="mt-3 text-3xl font-semibold text-slate-950">{stats.invalidCheckIns}</p>
+          <p className="mt-2 text-sm text-slate-500">Catatan berstatus tidak valid.</p>
         </div>
       </div>
     </div>

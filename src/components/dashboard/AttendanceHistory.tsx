@@ -183,12 +183,11 @@ export const AttendanceHistory = () => {
       <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-950">Riwayat Absensi</h2>
-          <p className="mt-1 text-sm text-slate-500">Cari, periksa, dan unduh catatan kehadiran tim.</p>
+          <h2 className="text-xl font-semibold text-slate-950">Riwayat Absensi</h2>
         </div>
       </div>
 
-      <div className="card-base p-6">
+      <div className="card-base p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_1fr_14rem]">
           <div>
             <label htmlFor="startDate" className="mb-2 block text-sm font-semibold text-slate-700">
@@ -314,7 +313,7 @@ export const AttendanceHistory = () => {
       {error && <div className="alert-error">{error}</div>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
           <p className="mb-1 text-sm font-semibold text-slate-500">Total Absensi</p>
           <p className="text-2xl sm:text-3xl font-bold text-slate-950">{filteredRecords.length}</p>
         </div>
@@ -347,7 +346,7 @@ export const AttendanceHistory = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Status Anomali
+                  Pemeriksaan
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                   Aksi
@@ -434,11 +433,11 @@ export const AttendanceHistory = () => {
 
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl shadow-slate-950/20">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-teal-700">
-                  Detail Kehadiran
+                  Detail Absensi
                 </p>
                 <h3 className="mt-1 text-xl font-bold text-slate-950">
                   {selectedRecord.user?.name || 'Profil tidak ditemukan'}
@@ -477,7 +476,7 @@ export const AttendanceHistory = () => {
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-bold uppercase text-slate-500">Anomaly Status</p>
+                  <p className="text-xs font-bold uppercase text-slate-500">Pemeriksaan</p>
                   <div className="mt-2">
                     <AnomalyStatusBadge isAnomaly={selectedRecord.anomaly_status} />
                   </div>
@@ -504,7 +503,7 @@ export const AttendanceHistory = () => {
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-bold uppercase text-slate-500">Anomaly Reason</p>
+                  <p className="text-xs font-bold uppercase text-slate-500">Catatan</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">
                     {selectedRecord.anomaly_reason || '-'}
                   </p>

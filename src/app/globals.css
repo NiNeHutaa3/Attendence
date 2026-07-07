@@ -1,7 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
-/* BASE LAYER */
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
@@ -9,18 +7,16 @@
 
   body {
     @apply bg-slate-50 text-slate-800;
-    font-family: 'Inter', sans-serif;
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', sans-serif;
     @apply font-semibold text-slate-900;
   }
 }
 
-/* SCROLLBAR */
 ::-webkit-scrollbar {
   width: 0.4rem;
 }
@@ -75,9 +71,9 @@
 
 .card-base {
   background-color: #ffffff;
-  border: 1px solid #e7edf3;
-  border-radius: 1.25rem;
-  box-shadow: 0 16px 40px -28px rgba(15, 23, 42, 0.34);
+  border: 1px solid #e3eaf1;
+  border-radius: 0.875rem;
+  box-shadow: 0 16px 34px -28px rgba(15, 23, 42, 0.45);
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
@@ -93,12 +89,12 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
-  border-radius: 0.875rem;
+  border-radius: 0.75rem;
   border: 1px solid #0f766e;
   background: linear-gradient(135deg, #0f766e, #0d9488);
   color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 14px 26px -16px rgba(13, 148, 136, 0.72);
+  box-shadow: 0 14px 26px -18px rgba(15, 118, 110, 0.85);
   transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
   cursor: pointer;
 }
@@ -121,7 +117,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
-  border-radius: 0.875rem;
+  border-radius: 0.75rem;
   background-color: #ffffff;
   color: #334155;
   border: 1px solid #cbd5e1;
@@ -145,8 +141,8 @@
   width: 100%;
   min-height: 2.75rem;
   padding: 0.625rem 0.875rem;
-  border-radius: 0.875rem;
-  background-color: #ffffff;
+  border-radius: 0.75rem;
+  background-color: #fbfdff;
   border: 1px solid #cbd5e1;
   color: #0f172a;
   transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
@@ -171,8 +167,7 @@
 .app-surface {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(13, 148, 136, 0.10), transparent 32rem),
-    linear-gradient(180deg, #fbfdfd 0%, #f1f5f5 100%);
+    linear-gradient(180deg, rgba(240, 253, 250, 0.72) 0%, rgba(248, 250, 252, 0.92) 30%, #f8fafc 100%);
 }
 
 .brand-gradient {
@@ -184,7 +179,6 @@
   background-size: 20px 20px;
 }
 
-/* ALERT */
 .alert-error {
   border: 1px solid rgba(239, 68, 68, 0.3);
   background-color: rgba(239, 68, 68, 0.1);
